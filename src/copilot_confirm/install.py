@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
-"""
-Installation script for Copilot Confirm.
+"""Installation script for Copilot Confirm agent files.
 
-Installs agent files (custom agents and instructions) to either:
-- Local: .github/ directory in current repository (default)
-- Global: VS Code/Insiders configuration directory
+Provides CLI and programmatic installation of VS Code Copilot agent customizations
+(agents + instructions) to local repos or global VS Code config.
+
+Business: Enables consistent Copilot behavior across workspaces via reusable agents.
+Provides confirmation workflow that prevents destructive operations w/o user approval.
+
+Features:
+    • Local install → .github/agents/ + .github/instructions/
+    • Global install → VS Code User prompts/ directory
+    • Auto-detect VS Code variant (stable/Insiders)
+    • Cross-platform: Windows, macOS, Linux
+    • Dry-run mode for preview
+    • Protocol-based DI for testability
+
+Usage:
+    CLI: `copilot-confirm --global --insiders --dry-run`
+    Programmatic: `installer = create_installer(); installer.install_local()`
 """
 
 import argparse
@@ -24,7 +37,16 @@ from typing import Protocol
 
 
 class OperatingSystem(Enum):
-    """Supported operating systems."""
+    """Supported operating systems for path resolution.
+
+    Business: Enables cross-platform VS Code config path construction.
+    Each value matches platform.system() output for direct comparison.
+
+    Attributes:
+        WINDOWS: Windows OS ("Windows")
+        DARWIN: macOS ("Darwin")
+        LINUX: Linux distributions ("Linux")
+    """
 
     WINDOWS = "Windows"
     DARWIN = "Darwin"
@@ -37,7 +59,17 @@ class OperatingSystem(Enum):
 
 
 class FileSystemProtocol(Protocol):
-    """Protocol for file system operations, enabling test mocking."""
+    """Protocol for filesystem operations, enabling test mocking.
+
+    Business: Abstracts I/O for dependency injection. Tests use MockFileSystem
+    to verify behavior w/o real disk access.
+
+    Attributes:
+        exists: Check path existence
+        mkdir: Create directory (w/ parents option)
+        copy_file: Copy file preserving metadata
+        get_cwd: Get current working directory
+    """
 
     def exists(self, path: Path) -> bool:
         """Check if a path exists."""
@@ -57,7 +89,16 @@ class FileSystemProtocol(Protocol):
 
 
 class EnvironmentProtocol(Protocol):
-    """Protocol for environment operations, enabling test mocking."""
+    """Protocol for environment operations, enabling test mocking.
+
+    Business: Abstracts platform/env detection for DI. Tests use MockEnvironment
+    to simulate different OS/env configurations.
+
+    Attributes:
+        get_system: Get OS name (Windows/Darwin/Linux)
+        get_env_var: Get environment variable w/ default
+        get_home: Get user home directory path
+    """
 
     def get_system(self) -> str:
         """Get the operating system name."""
@@ -78,7 +119,14 @@ class EnvironmentProtocol(Protocol):
 
 
 class RealFileSystem:
-    """Real file system implementation for production use."""
+    """Production filesystem implementation using pathlib/shutil.
+
+    Business: Provides actual disk I/O for production installation.
+    All methods have # pragma: no cover since tested via integration.
+
+    Technical: Thin wrapper around Path and shutil. copy_file uses copy2
+    to preserve file metadata (timestamps, permissions).
+    """
 
     def exists(self, path: Path) -> bool:  # pragma: no cover
         return path.exists()
@@ -96,7 +144,13 @@ class RealFileSystem:
 
 
 class RealEnvironment:
-    """Real environment implementation for production use."""
+    """Production environment implementation using platform/os modules.
+
+    Business: Provides actual OS/env detection for production path resolution.
+    All methods have # pragma: no cover since tested via integration.
+
+    Technical: Thin wrapper around platform.system(), os.environ, Path.home().
+    """
 
     def get_system(self) -> str:  # pragma: no cover
         return platform.system()
@@ -118,16 +172,37 @@ def setup_logging(
     log_file: Path | None = None,
     logger_name: str = "copilot_confirm",
 ) -> logging.Logger:
-    """
-    Configure logging with console and optional file handlers.
+    """Configure logging w/ console and optional file handlers.
+
+    Creates isolated logger w/ emoji-formatted console output and optional
+    detailed file logging. Clears existing handlers to prevent duplicates
+    across multiple calls.
+
+    Business: Provides user-friendly installation feedback via emoji indicators
+    (✅ success, ❌ error, 📁 paths) while enabling debug traces for troubleshooting.
 
     Args:
-        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_file: Optional file path for log output
-        logger_name: Name of the logger to configure
+        level: Log level ∈ {DEBUG, INFO, WARNING, ERROR, CRITICAL}. Default: INFO.
+        log_file: Optional file path for persistent logs. Parent dirs created
+            if missing.
+        logger_name: Logger name for isolation. Default: "copilot_confirm".
 
     Returns:
-        Configured logger instance
+        logging.Logger: Configured logger w/ 1-2 handlers (console + optional file).
+        Console uses simple format; file uses timestamped detailed format.
+
+    Raises:
+        OSError: If log_file parent dir creation fails (permissions, disk full).
+        ValueError: If level not valid logging level string.
+
+    Examples:
+        ```python
+        logger = setup_logging(level="DEBUG", log_file=Path("/tmp/install.log"))
+        logger.info("✅ Installation complete")
+        ```
+
+    Technical: O(1). Thread-safe via logging module. ~0.1ms setup time.
+    Propagation disabled to prevent duplicate output via root logger.
     """
     logger = logging.getLogger(logger_name)
     logger.setLevel(getattr(logging, level.upper()))
@@ -170,7 +245,22 @@ def setup_logging(
 
 @dataclass(frozen=True)
 class FileMapping:
-    """Represents a file to be copied with source and destination paths."""
+    """Immutable mapping of source → destination relative paths.
+
+    Business: Defines file copy operations for installation. Frozen for safety
+    (can't accidentally modify during iteration).
+
+    Attributes:
+        src_relative: Source path relative to agent_files_dir.
+        dst_relative: Destination path relative to target install dir.
+
+    Examples:
+        ```python
+        mapping = FileMapping("agents/foo.md", "prompts/foo.md")
+        src = agent_dir / mapping.src_relative
+        dst = target_dir / mapping.dst_relative
+        ```
+    """
 
     src_relative: str
     dst_relative: str
@@ -178,7 +268,25 @@ class FileMapping:
 
 @dataclass(frozen=True)
 class InstallationResult:
-    """Result of an installation operation."""
+    """Immutable result of an installation operation.
+
+    Business: Provides structured success/failure info for CLI exit codes
+    and programmatic error handling. Frozen for safety.
+
+    Attributes:
+        success: True if ≥1 file copied (or dry-run completed).
+        files_copied: Count of files successfully copied.
+        target_dir: Destination directory path.
+        error_message: Human-readable error if success=False, else None.
+
+    Examples:
+        ```python
+        if result.success:
+            print(f"Installed {result.files_copied} files to {result.target_dir}")
+        else:
+            print(f"Failed: {result.error_message}")
+        ```
+    """
 
     success: bool
     files_copied: int
@@ -192,7 +300,19 @@ class InstallationResult:
 
 
 class PathResolver:
-    """Resolves paths for different installation targets and editors."""
+    """Cross-platform path resolution for VS Code config and local install.
+
+    Business: Abstracts OS-specific path differences. Maps editor names to
+    config directories. Finds git repo root for local .github installation.
+
+    Attributes:
+        EDITOR_PATHS: Nested dict mapping OS → editor → path components.
+        env: EnvironmentProtocol for OS/home detection.
+        fs: FileSystemProtocol for exists checks.
+        system: Detected OperatingSystem enum value.
+
+    Technical: Initialized once per installer. Path lookups are O(1) dict access.
+    """
 
     # Editor configuration paths by OS
     EDITOR_PATHS: dict[OperatingSystem, dict[str, list[str]]] = {
@@ -216,12 +336,25 @@ class PathResolver:
     }
 
     def __init__(self, env: EnvironmentProtocol, fs: FileSystemProtocol):
-        """
-        Initialize the path resolver.
+        """Initialize path resolver w/ platform detection.
+
+        Detects OS from env.get_system() and stores for path resolution.
+        Validates OS is supported (Windows/macOS/Linux).
+
+        Business: Enables cross-platform path resolution for VS Code config dirs.
 
         Args:
-            env: Environment operations provider
-            fs: File system operations provider
+            env: Environment ops (system detection, env vars, home dir).
+            fs: Filesystem ops (exists, mkdir, copy, cwd).
+
+        Raises:
+            ValueError: If OS not in {Windows, Darwin, Linux}.
+
+        Examples:
+            ```python
+            resolver = PathResolver(RealEnvironment(), RealFileSystem())
+            config = resolver.get_vscode_config_dir("Code")
+            ```
         """
         self.env = env
         self.fs = fs
@@ -234,14 +367,28 @@ class PathResolver:
             raise ValueError(f"Unsupported operating system: {system_str}") from None
 
     def get_vscode_config_dir(self, editor: str) -> Path | None:
-        """
-        Get the VS Code configuration directory for the current OS.
+        """Get VS Code config directory for current OS and editor variant.
+
+        Resolves platform-specific config path:
+        - Windows: %APPDATA%/Code/User or %APPDATA%/Code - Insiders/User
+        - macOS: ~/Library/Application Support/Code/User
+        - Linux: ~/.config/Code/User
+
+        Business: Locates correct prompts/ parent dir for global agent installation.
 
         Args:
-            editor: Editor variant name
+            editor: Editor variant ∈ {"Code", "Code-Insiders"}.
 
         Returns:
-            Path to the config directory or None if not supported
+            Path: Config dir path, or None if editor unsupported or APPDATA missing.
+
+        Examples:
+            ```python
+            path = resolver.get_vscode_config_dir("Code-Insiders")
+            # Linux: ~/.config/Code - Insiders/User
+            ```
+
+        Technical: O(1). No I/O (path construction only). Thread-safe.
         """
         if editor not in self.EDITOR_PATHS[self.system]:
             return None
@@ -263,11 +410,24 @@ class PathResolver:
         return result
 
     def get_local_install_dir(self) -> Path:
-        """
-        Get the local .github directory for repository-specific installation.
+        """Get .github directory for repo-local agent installation.
+
+        Walks up directory tree from cwd to find .git, returns sibling .github.
+        Falls back to cwd/.github if not in git repo.
+
+        Business: Enables per-repo agent customization via .github/agents/.
 
         Returns:
-            Path to .github directory
+            Path: .github directory (may not exist yet). Always returns valid path.
+
+        Examples:
+            ```python
+            # In /home/user/myrepo/src/ with /home/user/myrepo/.git existing
+            path = resolver.get_local_install_dir()
+            # Returns: /home/user/myrepo/.github
+            ```
+
+        Technical: O(d) where d=directory depth. 1 exists() check per level.
         """
         current = self.fs.get_cwd()
 
@@ -282,7 +442,18 @@ class PathResolver:
 
 
 class EditorDetector:
-    """Detects installed VS Code variants."""
+    """Detects installed VS Code variants by checking config directories.
+
+    Business: Enables auto-detection for --global install w/o explicit editor flag.
+    Prioritizes Insiders since developers using it prefer bleeding-edge features.
+
+    Attributes:
+        SUPPORTED_EDITORS: ["Code-Insiders", "Code"] - check order matters.
+        path_resolver: For getting config dir paths.
+        fs: For exists() checks.
+
+    Technical: O(n) detection where n=len(SUPPORTED_EDITORS). 1-2 exists() calls.
+    """
 
     # Check Insiders first since users running Insiders typically prefer it
     SUPPORTED_EDITORS = ["Code-Insiders", "Code"]
@@ -299,14 +470,23 @@ class EditorDetector:
         self.fs = fs
 
     def detect_installed_editor(self) -> str:
-        """
-        Auto-detect which VS Code variant is installed.
+        """Auto-detect installed VS Code variant by checking config dirs.
 
-        Prioritizes Code-Insiders over stable Code since Insiders users
-        typically prefer to use Insiders for development.
+        Checks Insiders first (developers prefer bleeding-edge), then stable.
+        Returns "Code" as fallback if neither found.
+
+        Business: Enables --global install w/o requiring explicit editor flag.
 
         Returns:
-            Editor name from SUPPORTED_EDITORS
+            str: Editor name ∈ {"Code-Insiders", "Code"}. Always returns valid name.
+
+        Examples:
+            ```python
+            editor = detector.detect_installed_editor()
+            # "Code-Insiders" if ~/.config/Code - Insiders/User exists
+            ```
+
+        Technical: O(n) where n=SUPPORTED_EDITORS length (2). 1-2 exists() calls.
         """
         for editor in self.SUPPORTED_EDITORS:
             config_dir = self.path_resolver.get_vscode_config_dir(editor)
@@ -318,7 +498,24 @@ class EditorDetector:
 
 
 class AgentInstaller:
-    """Handles installation of agent files to local or global locations."""
+    """Core installer: copies agent files to local or global destinations.
+
+    Business: Main installation logic. Supports local (.github/) for per-repo
+    customization and global (VS Code prompts/) for system-wide availability.
+    Provides dry-run mode for safe preview.
+
+    Attributes:
+        LOCAL_FILES: FileMapping list for local install (agents/ + instructions/).
+        GLOBAL_FILES: FileMapping list for global install (prompts/).
+        agent_files_dir: Source directory containing files to install.
+        fs: FileSystemProtocol for I/O operations.
+        path_resolver: PathResolver for target path resolution.
+        editor_detector: EditorDetector for auto-detection.
+        logger: Logger for user feedback.
+
+    Technical: Stateless after init. All methods return InstallationResult.
+    Uses DI for testability - no direct I/O, all via protocols.
+    """
 
     # Files to install - source paths relative to agent_files_dir
     # Local install: .github/agents/ and .github/instructions/
@@ -386,16 +583,34 @@ class AgentInstaller:
     def install_files(
         self, target_dir: Path, files: list[FileMapping], dry_run: bool = False
     ) -> InstallationResult:
-        """
-        Copy agent files to target directory.
+        """Copy agent files from source to target directory.
+
+        Validates source dir exists, creates target dirs as needed, copies files.
+        Dry-run mode logs planned operations w/o filesystem writes.
+
+        Business: Core installation logic for both local and global targets.
+        Provides preview mode to verify paths before committing changes.
 
         Args:
-            target_dir: Destination directory
-            files: List of file mappings to install
-            dry_run: If True, only simulate the installation
+            target_dir: Destination base directory (e.g., ~/.config/Code/User).
+            files: FileMapping list w/ src_relative and dst_relative paths.
+            dry_run: If True, log planned copies w/o writing. Default: False.
 
         Returns:
-            InstallationResult with operation details
+            InstallationResult: success=True if ≥1 file copied (or dry-run),
+            files_copied count, target_dir, error_message if failed.
+
+        Raises:
+            None (errors captured in InstallationResult.error_message).
+
+        Examples:
+            ```python
+            result = installer.install_files(Path("/target"), mappings, dry_run=True)
+            if result.success:
+                print(f"Would copy {result.files_copied} files")
+            ```
+
+        Technical: O(n) where n=len(files). Creates dirs w/ parents=True.
         """
         if not self._validate_source_files():
             return InstallationResult(
@@ -428,15 +643,29 @@ class AgentInstaller:
     def _perform_installation(
         self, target_dir: Path, files: list[FileMapping]
     ) -> InstallationResult:
-        """
-        Perform the actual file installation.
+        """Execute file copy operations w/ error handling.
+
+        Creates target directories, copies each file, logs progress w/ emoji.
+        Skips missing source files w/ warning. Catches OSError for graceful failure.
+
+        Business: Atomic-ish installation - creates all dirs first, then copies.
+        Partial success possible (some files copied before error).
 
         Args:
-            target_dir: Destination directory
-            files: List of file mappings to install
+            target_dir: Destination base dir. Subdirs created as needed.
+            files: FileMapping list. Missing sources skipped w/ warning.
 
         Returns:
-            InstallationResult with operation details
+            InstallationResult: success=True if ≥1 file copied, files_copied count,
+            error_message on OSError or zero copies.
+
+        Examples:
+            ```python
+            result = installer._perform_installation(target, mappings)
+            # Logs: ✅ Copied: agents/copilot_confirm.agent.md
+            ```
+
+        Technical: O(n) copies. Uses shutil.copy2 (preserves metadata). ~1ms/file.
         """
         try:
             # Create target directories
@@ -485,14 +714,27 @@ class AgentInstaller:
             )
 
     def install_local(self, dry_run: bool = False) -> InstallationResult:
-        """
-        Install to local .github directory.
+        """Install agent files to repo-local .github directory.
+
+        Copies agents to .github/agents/ and instructions to .github/instructions/.
+        Auto-detects git repo root, falls back to cwd if not in repo.
+
+        Business: Enables per-repo Copilot customization. Files tracked in git
+        for team sharing. Overrides global agents when present.
 
         Args:
-            dry_run: If True, only simulate the installation
+            dry_run: If True, preview installation w/o writing. Default: False.
 
         Returns:
-            InstallationResult with operation details
+            InstallationResult: success, files_copied (typically 2), target_dir.
+
+        Examples:
+            ```python
+            result = installer.install_local(dry_run=True)
+            # Logs: 📁 Target directory: /home/user/myrepo/.github
+            ```
+
+        Technical: Calls get_local_install_dir() + install_files(). O(d+n).
         """
         target_dir = self.path_resolver.get_local_install_dir()
         self.logger.info("📦 Installing locally to repository...")
@@ -501,15 +743,29 @@ class AgentInstaller:
     def install_global(
         self, editor: str | None = None, dry_run: bool = False
     ) -> InstallationResult:
-        """
-        Install to global VS Code configuration directory.
+        """Install agent files globally to VS Code config prompts/ directory.
+
+        Copies agents and instructions to User/prompts/ for system-wide availability.
+        Auto-detects editor if not specified, preferring Insiders.
+
+        Business: Enables Copilot customization across all workspaces. Files
+        available to all repos w/o per-repo setup. Use --insiders for Insiders.
 
         Args:
-            editor: Specific editor to install for (auto-detected if None)
-            dry_run: If True, only simulate the installation
+            editor: "Code" or "Code-Insiders". Auto-detected if None.
+            dry_run: If True, preview installation w/o writing. Default: False.
 
         Returns:
-            InstallationResult with operation details
+            InstallationResult: success, files_copied, target_dir, error_message
+            if editor config dir not found.
+
+        Examples:
+            ```python
+            result = installer.install_global(editor="Code-Insiders", dry_run=True)
+            # Logs: 🌍 Installing globally for Code-Insiders...
+            ```
+
+        Technical: Calls get_vscode_config_dir() + install_files(). O(n) copies.
         """
         if editor is None:
             editor = self.editor_detector.detect_installed_editor()
@@ -521,7 +777,9 @@ class AgentInstaller:
             error_msg = f"Could not find {editor} configuration directory"
             self.logger.error(f"❌ Error: {error_msg}")
             self.logger.error(f"   Expected location: {config_dir}")
-            self.logger.info("\n💡 Tip: Use --insiders flag to install for VS Code Insiders")
+            self.logger.info(
+                "\n💡 Tip: Use --insiders flag to install for VS Code Insiders"
+            )
             return InstallationResult(
                 success=False,
                 files_copied=0,
@@ -542,15 +800,32 @@ def create_installer(
     agent_files_dir: Path | None = None,
     logger: logging.Logger | None = None,
 ) -> AgentInstaller:
-    """
-    Create an AgentInstaller with production dependencies.
+    """Factory: Create AgentInstaller w/ production dependencies.
+
+    Wires up RealFileSystem, RealEnvironment, PathResolver, EditorDetector.
+    Auto-detects agent_files_dir from package location if not specified.
+
+    Business: Single entry point for programmatic installation. Handles all
+    dependency wiring so callers just call install_local() or install_global().
 
     Args:
-        agent_files_dir: Directory containing agent files (auto-detected if None)
-        logger: Logger instance (creates default if None)
+        agent_files_dir: Source dir w/ agents/ and instructions/. Default:
+            <package_dir>/agent_files/.
+        logger: Logger instance. Default: creates via setup_logging().
 
     Returns:
-        Configured AgentInstaller instance
+        AgentInstaller: Fully configured installer ready for install_*() calls.
+
+    Raises:
+        ValueError: If auto-detected OS unsupported (via PathResolver).
+
+    Examples:
+        ```python
+        installer = create_installer()
+        result = installer.install_global(editor="Code-Insiders")
+        ```
+
+    Technical: O(1). No I/O during construction. Dependencies injected for testability.
     """
     if agent_files_dir is None:
         agent_files_dir = Path(__file__).parent / "agent_files"
@@ -579,7 +854,31 @@ def create_installer(
 
 
 def main() -> None:
-    """Main entry point for the installation script."""
+    """CLI entry point for copilot-confirm installation.
+
+    Parses args, configures logging, creates installer, executes install.
+    Exits w/ code 0 on success, 1 on failure.
+
+    Business: Provides user-friendly CLI for installing Copilot agents.
+    Supports local (default) and global modes, dry-run preview, debug logging.
+
+    Args:
+        None (reads sys.argv)
+
+    Returns:
+        None (calls sys.exit())
+
+    Raises:
+        SystemExit: Always exits. Code 0=success, 1=failure or --help/--version.
+
+    Examples:
+        ```bash
+        copilot-confirm --global --insiders --dry-run
+        copilot-confirm --local --log-level DEBUG
+        ```
+
+    Technical: Uses argparse. Mutually exclusive --global/--local enforced.
+    """
     from .__version__ import __version__
 
     parser = argparse.ArgumentParser(

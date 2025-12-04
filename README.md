@@ -23,7 +23,7 @@ You: "Refactor this function"
 
 Copilot: "Options:
   1. Extract to dependency injection pattern (70%)
-  2. Use factory pattern (25%)  
+  2. Use factory pattern (25%)
   3. Just add documentation (5%)
 
 🛑 WAITING"
@@ -145,6 +145,21 @@ copilot-confirm/
 ├── pyproject.toml
 └── README.md
 ```
+
+## 📐 Architecture Documentation
+
+AI-readable architectural contracts for each component:
+
+| Component | README | Description |
+|-----------|--------|-------------|
+| **copilot_confirm** | [`src/copilot_confirm/README.md`](src/copilot_confirm/README.md) | Core package: CLI, installer, path resolution, protocols |
+| **prompts** | [`.github/prompts/README.md`](.github/prompts/README.md) | Prompt library: docstrings, tests, code review, architecture |
+
+These READMEs follow a standardized format with:
+- Public API surface (🔒frozen, ⚠️internal)
+- Dependencies and invariants
+- AI-accessibility maps for safe modifications
+- Mermaid diagrams for visualization
 
 ## 🤝 Contributing
 
