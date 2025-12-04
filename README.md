@@ -9,7 +9,7 @@ A behavior customization tool for GitHub Copilot that enforces a deliberate, con
 
 ## 🎯 What It Does
 
-Copilot Confirm installs custom agent and instruction files that modify how GitHub Copilot behaves:
+Copilot Confirm installs custom agent and instruction files that modify how GitHub Copilot behaves. This tool implements the concepts from [The Better Agent: Homing Intent Through Probabilistic Feedback](https://mgrandau.medium.com/the-better-agent-homing-intent-through-probabilistic-feedback-d545466ebe6d?source=friends_link&sk=5a46e536997eb087c5ced4c0cee08679).
 
 - **Presents Options First**: Shows 2-3 ranked options with confidence percentages before taking action
 - **Waits for Confirmation**: Stops and waits for your explicit approval (e.g., "1", "option 2", "DI")
