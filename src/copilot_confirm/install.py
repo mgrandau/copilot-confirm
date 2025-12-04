@@ -629,10 +629,6 @@ Examples:
 
     args = parser.parse_args()
 
-    # Default to local if neither specified
-    if not args.install_global and args.install_local:
-        args.install_local = True
-
     # Can't specify both
     if args.install_global and args.install_local:
         print("❌ Error: Cannot specify both --global and --local")
