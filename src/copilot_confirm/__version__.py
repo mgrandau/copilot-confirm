@@ -10,7 +10,6 @@ __description__ = (
 __url__ = "https://github.com/mgrandau/copilot-confirm"
 
 __author__ = "Mark Grandau"
-__author_email__ = "mark@example.com"
 
 __license__ = "MIT"
 __copyright__ = "Copyright 2025 Mark Grandau"
@@ -22,7 +21,6 @@ __all__ = [
     "__description__",
     "__url__",
     "__author__",
-    "__author_email__",
     "__license__",
     "__copyright__",
 ]

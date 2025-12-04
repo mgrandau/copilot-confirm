@@ -1,2 +1,165 @@
-# copilot-confirm
-This is essentially a Copilot behavior customization distribution tool. It installs instruction files that force Copilot to adopt a more deliberate, user-approved workflow rather than acting immediately. 
+# Copilot Confirm
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Coverage: 100%](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/mgrandau/copilot-confirm)
+
+A behavior customization tool for GitHub Copilot that enforces a deliberate, confirmation-based workflow. Instead of Copilot acting immediately, it presents ranked options with confidence percentages and waits for your approval before executing.
+
+## 🎯 What It Does
+
+Copilot Confirm installs custom agent and instruction files that modify how GitHub Copilot behaves:
+
+- **Presents Options First**: Shows 2-3 ranked options with confidence percentages before taking action
+- **Waits for Confirmation**: Stops and waits for your explicit approval (e.g., "1", "option 2", "DI")
+- **Suggests Next Steps**: After completing a task, offers forward-looking options to keep momentum
+- **Prevents Premature Actions**: Never acts without confirmation, never asks mid-task, never ends vaguely
+
+### Example Workflow
+
+```
+You: "Refactor this function"
+
+Copilot: "Options:
+  1. Extract to dependency injection pattern (70%)
+  2. Use factory pattern (25%)  
+  3. Just add documentation (5%)
+
+🛑 WAITING"
+
+You: "1"
+
+Copilot: ✅ [implements DI pattern]
+"Next steps:
+  - Add unit tests (55%)
+  - Refactor related functions (30%)
+  - Update documentation (15%)"
+```
+
+## 📦 Installation
+
+### Prerequisites
+
+- Python 3.13+
+- VS Code or VS Code Insiders
+- [PDM](https://pdm-project.org/) (for development)
+
+### Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/mgrandau/copilot-confirm.git
+cd copilot-confirm
+
+# Create virtual environment and install
+pdm install
+
+# Install globally to VS Code Insiders
+pdm run copilot-confirm --global --insiders
+
+# Or install globally to VS Code stable
+pdm run copilot-confirm --global
+
+# Or install locally to current repository
+pdm run copilot-confirm --local
+```
+
+### Installation Options
+
+| Flag | Description |
+|------|-------------|
+| `--local`, `-l` | Install to `.github/` in current repository (default) |
+| `--global`, `-g` | Install to VS Code user configuration directory |
+| `--insiders`, `-i` | Use VS Code Insiders instead of stable (with `--global`) |
+| `--dry-run`, `-n` | Preview what would be installed without copying |
+| `--version`, `-V` | Show version and exit |
+| `--log-level` | Set logging verbosity (DEBUG, INFO, WARNING, ERROR) |
+| `--log-file` | Write logs to a file |
+
+### What Gets Installed
+
+**Local Install** (`.github/`):
+```
+.github/
+├── agents/
+│   └── copilot_confirm.agent.md
+└── instructions/
+    └── confirmation_workflow.instructions.md
+```
+
+**Global Install** (VS Code User directory):
+```
+~/.config/Code/User/prompts/           # Linux
+~/Library/Application Support/Code/User/prompts/  # macOS
+%APPDATA%\Code\User\prompts\           # Windows
+├── copilot_confirm.agent.md
+└── confirmation_workflow.instructions.md
+```
+
+## 🚀 Usage
+
+After installation, the Copilot Confirm agent will be available in VS Code:
+
+1. Open the Copilot Chat panel
+2. Select the **Copilot_Confirm** agent from the agent dropdown
+3. Start chatting - Copilot will now follow the confirmation workflow
+
+## 🛠️ Development
+
+```bash
+# Install dev dependencies
+pdm install
+
+# Run tests
+pdm run test
+
+# Run tests with coverage
+pdm run test-cov
+
+# Lint code
+pdm run lint
+
+# Format code
+pdm run format
+
+# Security scan
+pdm run security
+```
+
+## 📁 Project Structure
+
+```
+copilot-confirm/
+├── src/copilot_confirm/
+│   ├── __init__.py
+│   ├── __version__.py
+│   ├── install.py              # CLI and installation logic
+│   └── agent_files/
+│       ├── agents/
+│       │   └── copilot_confirm.agent.md
+│       └── instructions/
+│           └── confirmation_workflow.instructions.md
+├── tests/
+│   └── test_main.py
+├── pyproject.toml
+└── README.md
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📬 Contact
+
+For questions, issues, or suggestions, please [open an issue](https://github.com/mgrandau/copilot-confirm/issues) on GitHub.

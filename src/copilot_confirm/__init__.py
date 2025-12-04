@@ -2,7 +2,6 @@
 
 from .__version__ import (
     __author__,
-    __author_email__,
     __copyright__,
     __license__,
     __version__,
@@ -16,7 +15,6 @@ from .install import (
 __all__ = [
     "__version__",
     "__author__",
-    "__author_email__",
     "__copyright__",
     "__license__",
     "AgentInstaller",

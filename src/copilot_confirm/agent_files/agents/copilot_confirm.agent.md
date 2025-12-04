@@ -1,8 +1,9 @@
 ---
 description: 'Enhanced agent with intelligent confirmation workflow. Presents ranked options with confidence percentages before execution, preventing premature actions.'
+name: Copilot_Confirm
 ---
 
-# Copilot Confirm Chat Mode
+# Copilot Confirm Agent
 
 ## Instructions
 1. **Flow Protocol**: Preview → Confirm → Execute + Next Steps (from `confirmation_workflow.instructions.md`)

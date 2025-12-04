@@ -258,8 +258,8 @@ class TestAgentInstaller:
 
     def test_install_local_success(self) -> None:
         # Create paths for source files
-        src_chatmode = Path(
-            "/test/agent_files/chatmodes/copilot_confirm.chatmode.md"
+        src_agent = Path(
+            "/test/agent_files/agents/copilot_confirm.agent.md"
         )
         src_instructions = Path(
             "/test/agent_files/instructions/confirmation_workflow.instructions.md"
@@ -268,7 +268,7 @@ class TestAgentInstaller:
             existing_paths={
                 Path("/test/agent_files"),
                 Path("/test/repo/.git"),
-                src_chatmode,
+                src_agent,
                 src_instructions,
             }
         )
@@ -299,8 +299,8 @@ class TestAgentInstaller:
         assert result.error_message == "Agent files directory not found"
 
     def test_install_global_success(self) -> None:
-        src_chatmode = Path(
-            "/test/agent_files/chatmodes/copilot_confirm.chatmode.md"
+        src_agent = Path(
+            "/test/agent_files/agents/copilot_confirm.agent.md"
         )
         src_instructions = Path(
             "/test/agent_files/instructions/confirmation_workflow.instructions.md"
@@ -309,7 +309,7 @@ class TestAgentInstaller:
             existing_paths={
                 Path("/test/agent_files"),
                 Path("/home/testuser/.config/Code/User"),
-                src_chatmode,
+                src_agent,
                 src_instructions,
             }
         )
@@ -340,14 +340,18 @@ class TestAgentInstaller:
         assert "Could not find Code configuration directory" in result.error_message
 
     def test_install_copy_error(self) -> None:
-        src_chatmode = Path(
-            "/test/agent_files/chatmodes/copilot_confirm.chatmode.md"
+        src_agent = Path(
+            "/test/agent_files/agents/copilot_confirm.agent.md"
+        )
+        src_instructions = Path(
+            "/test/agent_files/instructions/confirmation_workflow.instructions.md"
         )
         fs = MockFileSystem(
             existing_paths={
                 Path("/test/agent_files"),
                 Path("/test/repo/.git"),
-                src_chatmode,
+                src_agent,
+                src_instructions,
             },
             copy_error=True,
         )
@@ -430,10 +434,10 @@ class TestMain:
                 main()
             assert exc_info.value.code in (0, 1)
 
-    def test_main_with_editor(self) -> None:
+    def test_main_with_insiders_flag(self) -> None:
         with patch(
             "sys.argv",
-            ["copilot-confirm", "--global", "--editor", "Code-Insiders", "--dry-run"],
+            ["copilot-confirm", "--global", "--insiders", "--dry-run"],
         ):
             with pytest.raises(SystemExit) as exc_info:
                 main()

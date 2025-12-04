@@ -2,7 +2,7 @@
 """
 Installation script for Copilot Confirm.
 
-Installs agent files (chatmodes and instructions) to either:
+Installs agent files (custom agents and instructions) to either:
 - Local: .github/ directory in current repository (default)
 - Global: VS Code/Insiders configuration directory
 """
@@ -284,7 +284,8 @@ class PathResolver:
 class EditorDetector:
     """Detects installed VS Code variants."""
 
-    SUPPORTED_EDITORS = ["Code", "Code-Insiders"]
+    # Check Insiders first since users running Insiders typically prefer it
+    SUPPORTED_EDITORS = ["Code-Insiders", "Code"]
 
     def __init__(self, path_resolver: PathResolver, fs: FileSystemProtocol):
         """
@@ -301,6 +302,9 @@ class EditorDetector:
         """
         Auto-detect which VS Code variant is installed.
 
+        Prioritizes Code-Insiders over stable Code since Insiders users
+        typically prefer to use Insiders for development.
+
         Returns:
             Editor name from SUPPORTED_EDITORS
         """
@@ -316,11 +320,24 @@ class EditorDetector:
 class AgentInstaller:
     """Handles installation of agent files to local or global locations."""
 
-    # Files to install
-    FILES_TO_INSTALL: list[FileMapping] = [
+    # Files to install - source paths relative to agent_files_dir
+    # Local install: .github/agents/ and .github/instructions/
+    # Global install: prompts/ (VS Code User promptsHome)
+    LOCAL_FILES: list[FileMapping] = [
         FileMapping(
-            "chatmodes/copilot_confirm.chatmode.md",
-            "prompts/copilot_confirm.chatmode.md",
+            "agents/copilot_confirm.agent.md",
+            "agents/copilot_confirm.agent.md",
+        ),
+        FileMapping(
+            "instructions/confirmation_workflow.instructions.md",
+            "instructions/confirmation_workflow.instructions.md",
+        ),
+    ]
+
+    GLOBAL_FILES: list[FileMapping] = [
+        FileMapping(
+            "agents/copilot_confirm.agent.md",
+            "prompts/copilot_confirm.agent.md",
         ),
         FileMapping(
             "instructions/confirmation_workflow.instructions.md",
@@ -367,13 +384,14 @@ class AgentInstaller:
         return True
 
     def install_files(
-        self, target_dir: Path, dry_run: bool = False
+        self, target_dir: Path, files: list[FileMapping], dry_run: bool = False
     ) -> InstallationResult:
         """
         Copy agent files to target directory.
 
         Args:
             target_dir: Destination directory
+            files: List of file mappings to install
             dry_run: If True, only simulate the installation
 
         Returns:
@@ -390,42 +408,45 @@ class AgentInstaller:
         self.logger.info(f"📁 Target directory: {target_dir}")
 
         if dry_run:
-            self._print_dry_run(target_dir)
+            self._print_dry_run(target_dir, files)
             return InstallationResult(
                 success=True,
-                files_copied=len(self.FILES_TO_INSTALL),
+                files_copied=len(files),
                 target_dir=target_dir,
             )
 
-        return self._perform_installation(target_dir)
+        return self._perform_installation(target_dir, files)
 
-    def _print_dry_run(self, target_dir: Path) -> None:
+    def _print_dry_run(self, target_dir: Path, files: list[FileMapping]) -> None:
         """Print dry run information."""
         self.logger.info("\n🔍 DRY RUN - Files that would be copied:")
-        for file_map in self.FILES_TO_INSTALL:
+        for file_map in files:
             src = self.agent_files_dir / file_map.src_relative
             dst = target_dir / file_map.dst_relative
             self.logger.info(f"  {src} -> {dst}")
 
-    def _perform_installation(self, target_dir: Path) -> InstallationResult:
+    def _perform_installation(
+        self, target_dir: Path, files: list[FileMapping]
+    ) -> InstallationResult:
         """
         Perform the actual file installation.
 
         Args:
             target_dir: Destination directory
+            files: List of file mappings to install
 
         Returns:
             InstallationResult with operation details
         """
         try:
             # Create target directories
-            for file_map in self.FILES_TO_INSTALL:
+            for file_map in files:
                 dst = target_dir / file_map.dst_relative
                 self.fs.mkdir(dst.parent, parents=True, exist_ok=True)
 
             # Copy files
             copied = 0
-            for file_map in self.FILES_TO_INSTALL:
+            for file_map in files:
                 src = self.agent_files_dir / file_map.src_relative
                 dst = target_dir / file_map.dst_relative
 
@@ -453,7 +474,7 @@ class AgentInstaller:
                 error_message="No files were copied",
             )
 
-        except Exception as e:
+        except OSError as e:
             error_msg = f"Error during installation: {e}"
             self.logger.error(f"❌ {error_msg}")
             return InstallationResult(
@@ -475,7 +496,7 @@ class AgentInstaller:
         """
         target_dir = self.path_resolver.get_local_install_dir()
         self.logger.info("📦 Installing locally to repository...")
-        return self.install_files(target_dir, dry_run)
+        return self.install_files(target_dir, self.LOCAL_FILES, dry_run)
 
     def install_global(
         self, editor: str | None = None, dry_run: bool = False
@@ -500,7 +521,7 @@ class AgentInstaller:
             error_msg = f"Could not find {editor} configuration directory"
             self.logger.error(f"❌ Error: {error_msg}")
             self.logger.error(f"   Expected location: {config_dir}")
-            self.logger.info("\n💡 Tip: You can specify the editor with --editor")
+            self.logger.info("\n💡 Tip: Use --insiders flag to install for VS Code Insiders")
             return InstallationResult(
                 success=False,
                 files_copied=0,
@@ -509,7 +530,7 @@ class AgentInstaller:
             )
 
         self.logger.info(f"🌍 Installing globally for {editor}...")
-        return self.install_files(config_dir, dry_run)
+        return self.install_files(config_dir, self.GLOBAL_FILES, dry_run)
 
 
 # ============================================================================
@@ -559,6 +580,8 @@ def create_installer(
 
 def main() -> None:
     """Main entry point for the installation script."""
+    from .__version__ import __version__
+
     parser = argparse.ArgumentParser(
         description="Install Copilot Confirm agent files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -570,8 +593,8 @@ Examples:
   # Install globally to VS Code
   python -m copilot_confirm.install --global
 
-  # Install to specific editor
-  python -m copilot_confirm.install --global --editor "Code-Insiders"
+  # Install globally to VS Code Insiders
+  python -m copilot_confirm.install --global --insiders
 
   # Dry run to see what would be installed
   python -m copilot_confirm.install --global --dry-run
@@ -582,6 +605,14 @@ Examples:
   # Save logs to file
   python -m copilot_confirm.install --global --log-file install.log
         """,
+    )
+
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show program version and exit",
     )
 
     parser.add_argument(
@@ -601,10 +632,10 @@ Examples:
     )
 
     parser.add_argument(
-        "--editor",
-        "-e",
-        choices=["Code", "Code-Insiders"],
-        help="Specify which editor to install for (auto-detected if not specified)",
+        "--insiders",
+        "-i",
+        action="store_true",
+        help="Install for VS Code Insiders instead of stable VS Code",
     )
 
     parser.add_argument(
@@ -647,7 +678,8 @@ Examples:
 
     # Perform installation
     if args.install_global:
-        result = installer.install_global(args.editor, args.dry_run)
+        editor = "Code-Insiders" if args.insiders else "Code"
+        result = installer.install_global(editor, args.dry_run)
     else:
         result = installer.install_local(args.dry_run)
 
