@@ -1,0 +1,102 @@
+{
+  "issues": [
+    {
+      "title": "Make main function return int instead of calling sys.exit directly",
+      "priority": "p2",
+      "labels": ["p2", "testability", "estimate: 0.5h"],
+      "estimate": "0.5h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:main:L604",
+        "current_state": "main calls sys.exit with result.success directly, making it difficult to test without catching SystemExit",
+        "problem": "Cannot test main function without catching SystemExit exception, which is awkward and can mask real errors",
+        "proposed_solution": "Change main to return int exit code, move sys.exit call to if __name__ == __main__ block",
+        "success_criteria": "main returns int, tests can call main directly and assert on return value",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    },
+    {
+      "title": "Move __version__ import to top-level with fallback",
+      "priority": "p2",
+      "labels": ["p2", "robustness", "estimate: 0.5h"],
+      "estimate": "0.5h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:main:L532",
+        "current_state": "from .__version__ import __version__ is inside main function",
+        "problem": "Import failure not caught; harder to mock in tests; deferred import adds complexity",
+        "proposed_solution": "Move import to top-level with try/except fallback to 0.0.0 for robustness",
+        "success_criteria": "Version import at module level with graceful fallback if __version__.py missing",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    },
+    {
+      "title": "Add validation for editor parameter in install_global method",
+      "priority": "p2",
+      "labels": ["p2", "robustness", "estimate: 0.5h"],
+      "estimate": "0.5h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:AgentInstaller.install_global:L460-L478",
+        "current_state": "install_global with invalid editor silently proceeds and returns confusing error message",
+        "problem": "Invalid editor values produce unclear error messages instead of immediate validation failure",
+        "proposed_solution": "Validate editor parameter against SUPPORTED_EDITORS set; raise ValueError for invalid values",
+        "success_criteria": "install_global with invalid editor raises ValueError with clear message listing valid options",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    },
+    {
+      "title": "Use constant for default editor fallback instead of magic string",
+      "priority": "p3",
+      "labels": ["p3", "architecture", "estimate: 0.5h"],
+      "estimate": "0.5h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:EditorDetector.detect_installed_editor:L327",
+        "current_state": "return Code hardcoded as magic string fallback",
+        "problem": "If SUPPORTED_EDITORS list changes, hardcoded fallback may become invalid; magic string reduces maintainability",
+        "proposed_solution": "Define DEFAULT_EDITOR = Code as class constant; use SUPPORTED_EDITORS last item or constant for fallback",
+        "success_criteria": "No hardcoded Code string; fallback derived from SUPPORTED_EDITORS constant",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    },
+    {
+      "title": "Consolidate LOCAL_FILES and GLOBAL_FILES source path duplication",
+      "priority": "p3",
+      "labels": ["p3", "architecture", "estimate: 2h"],
+      "estimate": "2h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:AgentInstaller:L349-L365",
+        "current_state": "LOCAL_FILES and GLOBAL_FILES both define same src_relative paths with different dst_relative paths",
+        "problem": "If source filename changes, must update in two places; DRY violation increases maintenance burden",
+        "proposed_solution": "Define SOURCE_FILES list once; generate LOCAL_FILES and GLOBAL_FILES mappings from it with different destination patterns",
+        "success_criteria": "Single source of truth for agent file names; mappings derived programmatically",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    },
+    {
+      "title": "Add Business context to EditorDetector.__init__ docstring",
+      "priority": "p4",
+      "labels": ["p4", "estimate: 0.5h"],
+      "estimate": "0.5h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:EditorDetector.__init__:L302-L311",
+        "current_state": "Docstring has Args only, missing Business context line present in other methods",
+        "problem": "Inconsistent documentation style across the codebase",
+        "proposed_solution": "Add Business: Initializes editor detection for auto-selecting VS Code variant during global install. line",
+        "success_criteria": "All __init__ methods follow same docstring pattern with Business context",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    },
+    {
+      "title": "Add Business context to AgentInstaller.__init__ docstring",
+      "priority": "p4",
+      "labels": ["p4", "estimate: 0.5h"],
+      "estimate": "0.5h",
+      "body": {
+        "location": "src/copilot_confirm/install.py:AgentInstaller.__init__:L367-L383",
+        "current_state": "Docstring has Args only, missing Business context line",
+        "problem": "Inconsistent with other well-documented methods in the file",
+        "proposed_solution": "Add Business: Wires up installer dependencies for local/global agent file installation. line",
+        "success_criteria": "AgentInstaller.__init__ docstring matches style of other methods",
+        "files_affected": ["src/copilot_confirm/install.py"]
+      }
+    }
+  ]
+}
