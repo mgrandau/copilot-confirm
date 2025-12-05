@@ -1000,11 +1000,11 @@ class TestAgentInstaller:
         assert result.success is False
         assert "Could not find Code configuration directory" in result.error_message
 
-    def test_install_global_invalid_editor_raises(self) -> None:
-        """Validates ValueError raised for invalid editor parameter.
+    def test_install_global_invalid_editor_returns_failure(self) -> None:
+        """Validates failure result for invalid editor parameter.
 
-        Tests install_global validates editor against SUPPORTED_EDITORS and
-        raises ValueError w/ helpful message listing valid options.
+        Tests install_global returns failure InstallationResult for unsupported
+        editors since get_vscode_config_dir returns None for unknown editors.
 
         Args:
             self: Test fixture
@@ -1013,30 +1013,28 @@ class TestAgentInstaller:
             None (pytest test method)
 
         Raises:
-            AssertionError: If ValueError not raised or message incorrect
+            AssertionError: If result.success is True or error_message missing
 
-        Testing Principles: Input validation, fail-fast, helpful errors
+        Testing Principles: Graceful failure, helpful error messages
 
         Arrangement: Create installer w/ MockFileSystem
         Action: Call install_global(editor="InvalidEditor")
-        Assertion: ValueError raised w/ message listing valid editors
+        Assertion: InstallationResult.success=False with descriptive error
 
         Examples:
             ```python
-            with pytest.raises(ValueError, match="Invalid editor"):
-                installer.install_global(editor="NotAValidEditor")
+            result = installer.install_global(editor="NotAValidEditor")
+            assert result.success is False
             ```
         """
         fs = MockFileSystem(existing_paths={Path("/test/agent_files")})
         installer = self._create_installer(fs)
 
-        with pytest.raises(ValueError) as exc_info:
-            installer.install_global(editor="InvalidEditor", dry_run=False)
+        result = installer.install_global(editor="InvalidEditor", dry_run=False)
 
-        error_msg = str(exc_info.value)
-        assert "Invalid editor 'InvalidEditor'" in error_msg
-        assert "Code-Insiders" in error_msg
-        assert "Code" in error_msg
+        assert result.success is False
+        assert result.error_message is not None
+        assert "Could not find InvalidEditor" in result.error_message
 
     def test_install_copy_error(self) -> None:
         """Validates graceful error handling when file copy fails.
@@ -1170,6 +1168,30 @@ class TestSetupLogging:
                 logger_name="test_file_logger_mock",
             )
             assert len(logger.handlers) == 2  # Console + mocked file handler
+
+    def test_invalid_log_level_raises_value_error(self) -> None:
+        """Validates invalid log level raises ValueError with helpful message.
+
+        Tests setup_logging rejects invalid level strings and provides list
+        of valid options in the error message.
+
+        Args:
+            self: Test fixture
+
+        Returns:
+            None (pytest test method)
+
+        Raises:
+            AssertionError: If ValueError not raised or message incorrect
+
+        Testing Principles: Input validation, helpful error messages
+
+        Arrangement: None
+        Action: Call setup_logging with invalid level "INVALID"
+        Assertion: ValueError raised with valid level list in message
+        """
+        with pytest.raises(ValueError, match="Invalid log level 'INVALID'"):
+            setup_logging(level="INVALID", logger_name="test_invalid")
 
 
 class TestOperatingSystem:

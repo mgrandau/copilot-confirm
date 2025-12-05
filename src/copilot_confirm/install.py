@@ -31,6 +31,19 @@ from enum import Enum
 from pathlib import Path
 from typing import Protocol
 
+# Public API
+__all__ = [
+    "create_installer",
+    "InstallationResult",
+    "FileMapping",
+    "AgentInstaller",
+    "setup_logging",
+    "main",
+]
+
+# Constants
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 # ============================================================================
 # Enums
 # ============================================================================
@@ -118,11 +131,11 @@ class EnvironmentProtocol(Protocol):
 # ============================================================================
 
 
+# NOTE: Methods marked pragma: no cover - tested via integration tests
 class RealFileSystem:
     """Production filesystem implementation using pathlib/shutil.
 
     Business: Provides actual disk I/O for production installation.
-    All methods have # pragma: no cover since tested via integration.
 
     Technical: Thin wrapper around Path and shutil. copy_file uses copy2
     to preserve file metadata (timestamps, permissions).
@@ -143,11 +156,11 @@ class RealFileSystem:
         return Path.cwd()
 
 
+# NOTE: Methods marked pragma: no cover - tested via integration tests
 class RealEnvironment:
     """Production environment implementation using platform/os modules.
 
     Business: Provides actual OS/env detection for production path resolution.
-    All methods have # pragma: no cover since tested via integration.
 
     Technical: Thin wrapper around platform.system(), os.environ, Path.home().
     """
@@ -204,14 +217,22 @@ def setup_logging(
     Technical: O(1). Thread-safe via logging module. ~0.1ms setup time.
     Propagation disabled to prevent duplicate output via root logger.
     """
+    # Validate log level before using
+    valid_levels = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+    level_upper = level.upper()
+    if level_upper not in valid_levels:
+        raise ValueError(
+            f"Invalid log level '{level}'. Must be one of: {', '.join(valid_levels)}"
+        )
+
     logger = logging.getLogger(logger_name)
-    logger.setLevel(getattr(logging, level.upper()))
+    logger.setLevel(getattr(logging, level_upper))
 
     # Remove existing handlers to avoid duplicates
     logger.handlers.clear()
 
     # Create formatter with emoji support
-    formatter = logging.Formatter(fmt="%(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(fmt="%(message)s", datefmt=LOG_DATE_FORMAT)
 
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -227,7 +248,7 @@ def setup_logging(
         # Use more detailed format for file output
         file_formatter = logging.Formatter(
             fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+            datefmt=LOG_DATE_FORMAT,
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -243,7 +264,7 @@ def setup_logging(
 # ============================================================================
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class FileMapping:
     """Immutable mapping of source → destination relative paths.
 
@@ -292,6 +313,7 @@ class InstallationResult:
     files_copied: int
     target_dir: Path
     error_message: str | None = None
+    files_failed: int = 0
 
 
 # ============================================================================
@@ -457,9 +479,9 @@ class EditorDetector:
     """
 
     # Check Insiders first since users running Insiders typically prefer it
-    SUPPORTED_EDITORS = ["Code-Insiders", "Code"]
+    SUPPORTED_EDITORS: list[str] = ["Code-Insiders", "Code"]
     # Default fallback when no editor config directory found
-    DEFAULT_EDITOR = "Code"
+    DEFAULT_EDITOR: str = "Code"
 
     def __init__(self, path_resolver: PathResolver, fs: FileSystemProtocol):
         """Initialize editor detector with path resolution and filesystem access.
@@ -564,11 +586,14 @@ class AgentInstaller:
         self.logger = logger
 
     def _validate_source_files(self) -> bool:
-        """
-        Validate that the agent files directory exists.
+        """Validate that the agent files directory exists before installation.
+
+        Business: Fail-fast validation prevents confusing errors during file
+        copy phase. Users see clear error message if package is corrupted.
 
         Returns:
-            True if valid, False otherwise
+            True if agent_files_dir exists and is accessible, False otherwise.
+            Logs error message with path on failure.
         """
         if not self.fs.exists(self.agent_files_dir):
             self.logger.error(
@@ -630,7 +655,18 @@ class AgentInstaller:
         return self._perform_installation(target_dir, files)
 
     def _print_dry_run(self, target_dir: Path, files: list[FileMapping]) -> None:
-        """Print dry run information."""
+        """Display preview of files that would be copied during installation.
+
+        Business: Enables --dry-run mode for users to verify installation paths
+        before committing changes. Essential for cautious deployments.
+
+        Args:
+            target_dir: Destination base directory for installation.
+            files: FileMapping list with source and destination paths.
+
+        Returns:
+            None (outputs to logger).
+        """
         self.logger.info("\n🔍 DRY RUN - Files that would be copied:")
         for file_map in files:
             src = self.agent_files_dir / file_map.src_relative
@@ -664,6 +700,8 @@ class AgentInstaller:
 
         Technical: O(n) copies. Uses shutil.copy2 (preserves metadata). ~1ms/file.
         """
+        copied = 0
+        failed = 0
         try:
             # Create target directories
             for file_map in files:
@@ -671,13 +709,13 @@ class AgentInstaller:
                 self.fs.mkdir(dst.parent, parents=True, exist_ok=True)
 
             # Copy files
-            copied = 0
             for file_map in files:
                 src = self.agent_files_dir / file_map.src_relative
                 dst = target_dir / file_map.dst_relative
 
                 if not self.fs.exists(src):
                     self.logger.warning(f"⚠️  Warning: Source file not found: {src}")
+                    failed += 1
                     continue
 
                 self.fs.copy_file(src, dst)
@@ -689,7 +727,10 @@ class AgentInstaller:
                     f"\n🎉 Successfully installed {copied} file(s) to {target_dir}"
                 )
                 return InstallationResult(
-                    success=True, files_copied=copied, target_dir=target_dir
+                    success=True,
+                    files_copied=copied,
+                    target_dir=target_dir,
+                    files_failed=failed,
                 )
 
             self.logger.error("\n❌ No files were copied")
@@ -698,6 +739,7 @@ class AgentInstaller:
                 files_copied=0,
                 target_dir=target_dir,
                 error_message="No files were copied",
+                files_failed=failed,
             )
 
         except OSError as e:
@@ -705,9 +747,10 @@ class AgentInstaller:
             self.logger.error(f"❌ {error_msg}")
             return InstallationResult(
                 success=False,
-                files_copied=0,
+                files_copied=copied,
                 target_dir=target_dir,
                 error_message=error_msg,
+                files_failed=len(files) - copied,
             )
 
     def install_local(self, dry_run: bool = False) -> InstallationResult:
@@ -756,9 +799,6 @@ class AgentInstaller:
             InstallationResult: success, files_copied, target_dir, error_message
             if editor config dir not found.
 
-        Raises:
-            ValueError: If editor not in SUPPORTED_EDITORS {"Code", "Code-Insiders"}.
-
         Examples:
             ```python
             result = installer.install_global(editor="Code-Insiders", dry_run=True)
@@ -767,13 +807,6 @@ class AgentInstaller:
 
         Technical: Calls get_vscode_config_dir() + install_files(). O(n) copies.
         """
-        # Validate editor parameter if provided
-        if editor is not None and editor not in EditorDetector.SUPPORTED_EDITORS:
-            valid_editors = ", ".join(EditorDetector.SUPPORTED_EDITORS)
-            raise ValueError(
-                f"Invalid editor '{editor}'. Must be one of: {valid_editors}"
-            )
-
         if editor is None:
             editor = self.editor_detector.detect_installed_editor()
             self.logger.info(f"🔍 Auto-detected editor: {editor}")
@@ -984,13 +1017,16 @@ Examples:
     installer = create_installer(logger=logger)
 
     # Show system info
-    env = RealEnvironment()
-    logger.info(f"🖥️  System: {env.get_system()}")
+    logger.info(f"🖥️  System: {platform.system()}")
     logger.info("")
 
     # Perform installation
     if args.install_global:
-        editor = "Code-Insiders" if args.insiders else "Code"
+        editor = (
+            EditorDetector.SUPPORTED_EDITORS[0]  # Code-Insiders
+            if args.insiders
+            else EditorDetector.DEFAULT_EDITOR  # Code
+        )
         result = installer.install_global(editor, args.dry_run)
     else:
         result = installer.install_local(args.dry_run)
