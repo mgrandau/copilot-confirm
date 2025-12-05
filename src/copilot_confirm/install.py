@@ -48,10 +48,13 @@ __all__ = [
     # Protocols (for custom implementations)
     "FileSystemProtocol",
     "EnvironmentProtocol",
+    # Default implementations
+    "RealFileSystem",
+    "RealEnvironment",
 ]
 
-# Constants
-LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+# Constants (private)
+_LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # ============================================================================
 # Enums
@@ -241,7 +244,7 @@ def setup_logging(
     logger.handlers.clear()
 
     # Create formatter with emoji support
-    formatter = logging.Formatter(fmt="%(message)s", datefmt=LOG_DATE_FORMAT)
+    formatter = logging.Formatter(fmt="%(message)s", datefmt=_LOG_DATE_FORMAT)
 
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -257,7 +260,7 @@ def setup_logging(
         # Use more detailed format for file output
         file_formatter = logging.Formatter(
             fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt=LOG_DATE_FORMAT,
+            datefmt=_LOG_DATE_FORMAT,
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
