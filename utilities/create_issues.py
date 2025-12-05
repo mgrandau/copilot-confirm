@@ -8,6 +8,8 @@ Business: Bridges code review findings → GitHub issues. Enables automated
 technical debt tracking w/ standardized labels for priority, category, workflow,
 and effort estimates. Integrates w/ code_quality_metrics.py via [Est: Xh] format.
 
+Requires: Python ≥3.10 (uses | union types)
+
 Features:
     • Dynamic label discovery ← repository
     • Label validation before issue creation
@@ -63,6 +65,25 @@ RATE_LIMIT_PATTERNS = ["rate limit", "API rate limit", "403"]
 # For strict mode: title and labels (passed as command args)
 DANGEROUS_CHARS_REGEX = re.compile(r'[;&|`$<>(){}\[\]"\']')
 
+# Label category constants (single source of truth)
+CATEGORY_LABELS = frozenset(
+    {
+        "security",
+        "performance",
+        "robustness",
+        "testability",
+        "type-safety",
+        "architecture",
+    }
+)
+WORKFLOW_LABELS = frozenset({"needs-triage", "approved-fix", "hold-future"})
+
+# Fallback sort order for malformed estimate labels
+MALFORMED_ESTIMATE_SORT_ORDER = 999.0
+
+# Repository format validation pattern
+REPO_PATTERN = re.compile(r"^[\w-]+/[\w-]+$")
+
 # ============================================================================
 # Color Output Helpers
 # ============================================================================
@@ -95,6 +116,21 @@ class Colors:
     MAGENTA = "\033[95m"
     RESET = "\033[0m"
     BOLD = "\033[1m"
+
+    # Priority display colors for CLI output
+    PRIORITY_COLORS: dict[str, str] = {}
+
+    @classmethod
+    def get_priority_color(cls, priority: str | None) -> str:
+        """Get color for priority label, with lazy initialization."""
+        if not cls.PRIORITY_COLORS:
+            cls.PRIORITY_COLORS = {
+                "p1": cls.RED,
+                "p2": cls.YELLOW,
+                "p3": cls.CYAN,
+                "p4": cls.GRAY,
+            }
+        return cls.PRIORITY_COLORS.get(priority, cls.WHITE) if priority else cls.WHITE
 
 
 def print_color(message: str, color: str = Colors.WHITE, end: str = "\n") -> None:
@@ -298,7 +334,7 @@ class BatchCreationResult:
 # ============================================================================
 
 
-def test_github_cli_available() -> OperationResult:
+def check_github_cli_available() -> OperationResult:
     """Validate gh CLI availability and authentication → OperationResult.
 
     Checks gh version and auth status before any GitHub operations. Fails fast
@@ -316,7 +352,7 @@ def test_github_cli_available() -> OperationResult:
 
     Examples:
         ```python
-        result = test_github_cli_available()
+        result = check_github_cli_available()
         if not result.success:
             print(f"Setup required: {result.error}")
         ```
@@ -769,26 +805,10 @@ def write_labels_for_ai(labels: list[dict]) -> None:
 
     Technical: O(n log n) due to sorting. Prints to stdout. No return value.
     """
-    # Categorize labels
+    # Categorize labels using module constants
     priorities = [lbl for lbl in labels if re.match(r"^p\d+$", lbl["name"])]
-    categories = [
-        lbl
-        for lbl in labels
-        if lbl["name"]
-        in {
-            "security",
-            "performance",
-            "robustness",
-            "testability",
-            "type-safety",
-            "architecture",
-        }
-    ]
-    workflow = [
-        lbl
-        for lbl in labels
-        if lbl["name"] in {"needs-triage", "approved-fix", "hold-future"}
-    ]
+    categories = [lbl for lbl in labels if lbl["name"] in CATEGORY_LABELS]
+    workflow = [lbl for lbl in labels if lbl["name"] in WORKFLOW_LABELS]
     estimates = [lbl for lbl in labels if lbl["name"].startswith("estimate:")]
     other = [
         lbl
@@ -825,10 +845,15 @@ def write_labels_for_ai(labels: list[dict]) -> None:
 
     if estimates:
         print_color("EFFORT ESTIMATE LABELS:", Colors.YELLOW)
-        for label in sorted(
-            estimates,
-            key=lambda x: float(x["name"].replace("estimate: ", "").replace("h", "")),
-        ):
+
+        def estimate_sort_key(x: dict) -> float:
+            """Extract numeric hours from estimate label, with fallback."""
+            try:
+                return float(x["name"].replace("estimate: ", "").replace("h", ""))
+            except ValueError:
+                return MALFORMED_ESTIMATE_SORT_ORDER
+
+        for label in sorted(estimates, key=estimate_sort_key):
             print_color(f"  - {label['name']}", Colors.WHITE, end="")
             print_color(f" : {label.get('description', '')}", Colors.GRAY)
         print()
@@ -863,7 +888,9 @@ def write_labels_for_ai(labels: list[dict]) -> None:
 # ============================================================================
 
 
-def test_input_safety(input_string: str, field_name: str, strict: bool = True) -> None:
+def validate_input_safety(
+    input_string: str, field_name: str, strict: bool = True
+) -> None:
     """Validate input for command injection and length limits.
 
     Strict mode (title/labels): Rejects shell metacharacters ;&|`$<>(){}[]"'.
@@ -884,8 +911,8 @@ def test_input_safety(input_string: str, field_name: str, strict: bool = True) -
 
     Examples:
         ```python
-        test_input_safety("Fix bug in parser", "title")  # OK
-        test_input_safety("Fix; rm -rf /", "title")  # ValueError
+        validate_input_safety("Fix bug in parser", "title")  # OK
+        validate_input_safety("Fix; rm -rf /", "title")  # ValueError
         ```
 
     Technical: O(n) regex scan. ~0.01ms for typical input.
@@ -952,14 +979,14 @@ def validate_issue_security(issue: dict, issue_number: int) -> ValidationResult:
     title = issue.get("title")
     if title:
         try:
-            test_input_safety(title, "title", strict=True)
+            validate_input_safety(title, "title", strict=True)
         except ValueError as e:
             result.errors.append(f"Issue #{issue_number}: {e}")
 
     # Validate each label
     for label in issue.get("labels", []):
         try:
-            test_input_safety(label, "label", strict=True)
+            validate_input_safety(label, "label", strict=True)
         except ValueError as e:
             result.errors.append(f"Issue #{issue_number}: {e}")
 
@@ -1061,7 +1088,7 @@ def validate_issue_body_structure(issue: dict, issue_number: int) -> ValidationR
             value = body.get(field)
             if value:
                 try:
-                    test_input_safety(str(value), f"body.{field}", strict=False)
+                    validate_input_safety(str(value), f"body.{field}", strict=False)
                 except ValueError as e:
                     result.errors.append(f"Issue #{issue_number}: {e}")
 
@@ -1069,7 +1096,7 @@ def validate_issue_body_structure(issue: dict, issue_number: int) -> ValidationR
         files_affected = body.get("files_affected", [])
         for file in files_affected:
             try:
-                test_input_safety(file, "body.files_affected", strict=True)
+                validate_input_safety(file, "body.files_affected", strict=True)
             except ValueError as e:
                 result.errors.append(f"Issue #{issue_number}: {e}")
 
@@ -1253,13 +1280,7 @@ def create_github_issue(
     labels = issue.get("labels", [])
     priority = next((lbl for lbl in labels if re.match(r"^p\d+$", lbl)), None)
 
-    priority_colors = {
-        "p1": Colors.RED,
-        "p2": Colors.YELLOW,
-        "p3": Colors.CYAN,
-        "p4": Colors.GRAY,
-    }
-    color = priority_colors.get(priority, Colors.WHITE)
+    color = Colors.get_priority_color(priority)
 
     print()
     print_color(f"[{priority}] Creating issue {issue_number}/{total_issues}...", color)
@@ -1351,7 +1372,7 @@ def initialize_prerequisites(repo: str) -> OperationResult:
     Technical: 2 API calls (auth check, label fetch). ~1-3s total.
     """
     # Check GitHub CLI
-    cli_check = test_github_cli_available()
+    cli_check = check_github_cli_available()
     if not cli_check.success:
         return OperationResult(success=False, error=cli_check.error)
 
@@ -1697,7 +1718,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # Validate repository format
-    if not re.match(r"^[\w-]+/[\w-]+$", args.repository):
+    if not REPO_PATTERN.match(args.repository):
         print_error("Repository must be in format 'owner/repo'")
         return 1
 

@@ -185,199 +185,163 @@ class TestInstallationResult:
     """Tests for InstallationResult dataclass.
 
     Categories: • Success (1) • Failure (1)
-    Strategy: Direct instantiation w/ success/failure scenarios
-    Total: 2 tests
+    Strategy: Parameterized success/failure scenarios
+    Total: 1 parameterized test (2 cases)
     """
 
-    def test_successful_result(self) -> None:
-        """Validates InstallationResult w/ success=True stores all fields.
+    @pytest.mark.parametrize(
+        ("success", "files_copied", "error_message", "expected_valid"),
+        [
+            (True, 2, None, True),
+            (False, 0, "Test error", False),
+        ],
+    )
+    def test_installation_result_states(
+        self,
+        success: bool,
+        files_copied: int,
+        error_message: str | None,
+        expected_valid: bool,
+    ) -> None:
+        """Validates InstallationResult stores success/failure states.
 
-        Tests successful installation result: success flag, files_copied count,
-        target_dir path, and None error_message (default for success).
+        Parameterized test covering both success (files_copied=2, no error)
+        and failure (files_copied=0, error message) scenarios for
+        installation result tracking.
 
         Args:
             self: Test fixture
+            success: Whether installation succeeded
+            files_copied: Count of files copied
+            error_message: Error description if failed
+            expected_valid: Expected success state
 
         Returns:
             None (pytest test method)
 
         Raises:
-            AssertionError: If fields don't match expected success state
+            AssertionError: If any field doesn't match expected
 
-        Testing Principles: Success state representation, default values
+        Testing Principles: Parameterized coverage, state representation
 
-        Arrangement: Prepare success params (True, 2 files, target path)
-        Action: Construct InstallationResult w/ success params
-        Assertion: success=True, files_copied=2, error_message=None
+        Arrangement: Prepare success/failure param combination
+        Action: Construct InstallationResult w/ params
+        Assertion: All fields match expected values
 
         Examples:
             ```python
-            result = InstallationResult(True, 2, Path("/t"))
+            result = InstallationResult(success=True, files_copied=2, ...)
             assert result.success and result.error_message is None
             ```
         """
         result = InstallationResult(
-            success=True, files_copied=2, target_dir=Path("/test")
-        )
-        assert result.success is True
-        assert result.files_copied == 2
-        assert result.error_message is None
-
-    def test_failed_result(self) -> None:
-        """Validates InstallationResult w/ success=False includes error_message.
-
-        Tests failure installation result: success=False, files_copied=0,
-        and descriptive error_message for user feedback.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If fields don't match expected failure state
-
-        Testing Principles: Failure state representation, error messaging
-
-        Arrangement: Prepare failure params (False, 0 files, error msg)
-        Action: Construct InstallationResult w/ failure params
-        Assertion: success=False, error_message contains description
-
-        Examples:
-            ```python
-            result = InstallationResult(success=False, ..., error_message="Failed")
-            assert not result.success and result.error_message == "Failed"
-            ```
-        """
-        result = InstallationResult(
-            success=False,
-            files_copied=0,
+            success=success,
+            files_copied=files_copied,
             target_dir=Path("/test"),
-            error_message="Test error",
+            error_message=error_message,
         )
-        assert result.success is False
-        assert result.error_message == "Test error"
+        assert result.success is expected_valid
+        assert result.files_copied == files_copied
+        assert result.error_message == error_message
 
 
 class TestPathResolver:
     """Tests for PathResolver class.
 
-    Categories: • Linux (2) • Windows (2) • macOS (1) • Errors (2) • Local (2)
-    Strategy: MockEnvironment per OS, verify path construction
-    Total: 9 tests
+    Categories: • Cross-platform (1 parameterized) • Errors (2) • Local (2)
+    Strategy: Parameterized OS/editor combinations, separate error cases
+    Total: 5 tests
     """
 
-    def test_linux_vscode_config_dir(self) -> None:
-        """Validates Linux VS Code config path uses ~/.config/Code/User.
+    @pytest.mark.parametrize(
+        ("system", "home", "env_vars", "editor", "expected_path"),
+        [
+            pytest.param(
+                "Linux",
+                Path("/home/user"),
+                {},
+                "Code",
+                Path("/home/user/.config/Code/User"),
+                id="linux-stable",
+            ),
+            pytest.param(
+                "Linux",
+                Path("/home/user"),
+                {},
+                "Code-Insiders",
+                Path("/home/user/.config/Code - Insiders/User"),
+                id="linux-insiders",
+            ),
+            pytest.param(
+                "Windows",
+                Path("C:/Users/test"),
+                {"APPDATA": "C:\\Users\\test\\AppData\\Roaming"},
+                "Code",
+                Path("C:\\Users\\test\\AppData\\Roaming/Code/User"),
+                id="windows-appdata",
+            ),
+            pytest.param(
+                "Darwin",
+                Path("/Users/test"),
+                {},
+                "Code",
+                Path("/Users/test/Library/Application Support/Code/User"),
+                id="macos",
+            ),
+        ],
+    )
+    def test_vscode_config_dir_cross_platform(
+        self,
+        system: str,
+        home: Path,
+        env_vars: dict,
+        editor: str,
+        expected_path: Path,
+    ) -> None:
+        """Validates VS Code config path construction across platforms.
 
-        Tests PathResolver constructs correct XDG-compliant path for stable
-        VS Code on Linux using home directory from MockEnvironment.
+        Parameterized test covering Linux stable, Linux Insiders, Windows
+        w/ APPDATA, and macOS paths. Verifies OS-specific path patterns
+        and editor variant naming ("Code" vs "Code - Insiders").
 
         Args:
             self: Test fixture
+            system: OS name (Linux, Windows, Darwin)
+            home: Mock home directory path
+            env_vars: Environment variables (APPDATA for Windows)
+            editor: Editor variant (Code, Code-Insiders)
+            expected_path: Expected resolved config path
 
         Returns:
             None (pytest test method)
 
         Raises:
-            AssertionError: If path doesn't match Linux convention
+            AssertionError: If resolved path != expected
 
-        Testing Principles: Linux XDG config path, home-relative construction
+        Testing Principles: Cross-platform compatibility, path patterns
 
-        Arrangement: MockEnvironment(system="Linux", home="/home/user")
-        Action: Call get_vscode_config_dir("Code")
-        Assertion: Returns /home/user/.config/Code/User
-
-        Examples:
-            ```python
-            resolver = PathResolver(env, fs)
-            assert resolver.get_vscode_config_dir("Code") == Path("~/.config/Code/User")
-            ```
-        """
-        env = MockEnvironment(system="Linux", home=Path("/home/user"))
-        fs = MockFileSystem()
-        resolver = PathResolver(env, fs)
-
-        config_dir = resolver.get_vscode_config_dir("Code")
-        assert config_dir == Path("/home/user/.config/Code/User")
-
-    def test_linux_vscode_insiders_config_dir(self) -> None:
-        """Validates Linux Insiders path uses ~/.config/Code - Insiders/User.
-
-        Tests PathResolver handles space in "Code - Insiders" directory name
-        correctly for Linux Insiders installation.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If path doesn't include space in dir name
-
-        Testing Principles: Insiders naming convention, space handling
-
-        Arrangement: MockEnvironment(system="Linux", home="/home/user")
-        Action: Call get_vscode_config_dir("Code-Insiders")
-        Assertion: Returns path w/ "Code - Insiders" (note spaces)
+        Arrangement: MockEnvironment w/ system, home, env_vars
+        Action: Call get_vscode_config_dir(editor)
+        Assertion: Returned path matches OS/editor-specific expected
 
         Examples:
             ```python
-            path = resolver.get_vscode_config_dir("Code-Insiders")
-            assert "Code - Insiders" in str(path)
+            # Linux: ~/.config/Code/User
+            # macOS: ~/Library/Application Support/Code/User
+            # Windows: %APPDATA%/Code/User
             ```
         """
-        env = MockEnvironment(system="Linux", home=Path("/home/user"))
+        env = MockEnvironment(system=system, home=home, env_vars=env_vars)
         fs = MockFileSystem()
         resolver = PathResolver(env, fs)
-
-        config_dir = resolver.get_vscode_config_dir("Code-Insiders")
-        assert config_dir == Path("/home/user/.config/Code - Insiders/User")
-
-    def test_windows_vscode_config_dir(self) -> None:
-        """Validates Windows VS Code config uses %APPDATA%/Code/User.
-
-        Tests PathResolver reads APPDATA env var and constructs Windows-style
-        path for VS Code configuration.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If path doesn't use APPDATA base
-
-        Testing Principles: Windows APPDATA usage, env var resolution
-
-        Arrangement: MockEnvironment w/ APPDATA env var set
-        Action: Call get_vscode_config_dir("Code")
-        Assertion: Returns APPDATA-based path
-
-        Examples:
-            ```python
-            env = MockEnvironment(system="Windows", env_vars={"APPDATA": "C:/..."})
-            assert "AppData/Roaming/Code" in str(resolver.get_vscode_config_dir("Code"))
-            ```
-        """
-        env = MockEnvironment(
-            system="Windows",
-            env_vars={"APPDATA": "C:\\Users\\test\\AppData\\Roaming"},
-        )
-        fs = MockFileSystem()
-        resolver = PathResolver(env, fs)
-
-        config_dir = resolver.get_vscode_config_dir("Code")
-        assert config_dir == Path("C:\\Users\\test\\AppData\\Roaming/Code/User")
+        assert resolver.get_vscode_config_dir(editor) == expected_path
 
     def test_windows_no_appdata_returns_none(self) -> None:
         """Validates None returned when APPDATA env var missing on Windows.
 
         Tests graceful handling when Windows system lacks APPDATA variable.
-        Returns None instead of raising, allowing caller to handle.
+        Returns None instead of raising, allowing caller to handle missing
+        config path scenario.
 
         Args:
             self: Test fixture
@@ -390,62 +354,27 @@ class TestPathResolver:
 
         Testing Principles: Missing env var handling, graceful degradation
 
-        Arrangement: MockEnvironment(system="Windows", env_vars={}) - empty
+        Arrangement: MockEnvironment(system="Windows", env_vars={})
         Action: Call get_vscode_config_dir("Code")
         Assertion: Returns None
 
         Examples:
             ```python
-            env = MockEnvironment(system="Windows", env_vars={})
+            # APPDATA not set -> cannot determine config path
             assert resolver.get_vscode_config_dir("Code") is None
             ```
         """
         env = MockEnvironment(system="Windows", env_vars={})
         fs = MockFileSystem()
         resolver = PathResolver(env, fs)
-
-        config_dir = resolver.get_vscode_config_dir("Code")
-        assert config_dir is None
-
-    def test_darwin_vscode_config_dir(self) -> None:
-        """Validates macOS VS Code path uses ~/Library/Application Support.
-
-        Tests PathResolver constructs macOS-standard Application Support path
-        per Apple's app data location guidelines.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If path doesn't use Library/Application Support
-
-        Testing Principles: macOS conventions, Application Support path
-
-        Arrangement: MockEnvironment(system="Darwin", home="/Users/test")
-        Action: Call get_vscode_config_dir("Code")
-        Assertion: Returns ~/Library/Application Support/Code/User
-
-        Examples:
-            ```python
-            path = resolver.get_vscode_config_dir("Code")
-            assert "Library/Application Support" in str(path)
-            ```
-        """
-        env = MockEnvironment(system="Darwin", home=Path("/Users/test"))
-        fs = MockFileSystem()
-        resolver = PathResolver(env, fs)
-
-        config_dir = resolver.get_vscode_config_dir("Code")
-        assert config_dir == Path("/Users/test/Library/Application Support/Code/User")
+        assert resolver.get_vscode_config_dir("Code") is None
 
     def test_unsupported_editor_returns_none(self) -> None:
         """Validates None returned for unknown editor variant names.
 
-        Tests that requesting config path for unsupported editor (not Code or
-        Code-Insiders) returns None rather than raising exception.
+        Tests that requesting config path for unsupported editor (not
+        "Code" or "Code-Insiders") returns None rather than raising.
+        Enables caller to handle unknown editors gracefully.
 
         Args:
             self: Test fixture
@@ -454,9 +383,9 @@ class TestPathResolver:
             None (pytest test method)
 
         Raises:
-            AssertionError: If non-None returned for unsupported editor
+            AssertionError: If non-None returned for unknown editor
 
-        Testing Principles: Unknown input handling, graceful None return
+        Testing Principles: Unknown input handling, None sentinel
 
         Arrangement: Standard MockEnvironment + MockFileSystem
         Action: Call get_vscode_config_dir("UnsupportedEditor")
@@ -470,15 +399,14 @@ class TestPathResolver:
         env = MockEnvironment(system="Linux", home=Path("/home/user"))
         fs = MockFileSystem()
         resolver = PathResolver(env, fs)
-
-        config_dir = resolver.get_vscode_config_dir("UnsupportedEditor")
-        assert config_dir is None
+        assert resolver.get_vscode_config_dir("UnsupportedEditor") is None
 
     def test_unsupported_os_raises(self) -> None:
         """Validates ValueError raised for unsupported operating systems.
 
         Tests that PathResolver constructor raises descriptive error when
-        platform.system() returns unsupported OS (e.g., FreeBSD).
+        platform.system() returns unsupported OS (e.g., FreeBSD). Fail-fast
+        behavior for unsupported platforms.
 
         Args:
             self: Test fixture
@@ -503,194 +431,114 @@ class TestPathResolver:
         """
         env = MockEnvironment(system="FreeBSD")
         fs = MockFileSystem()
-
         with pytest.raises(ValueError, match="Unsupported operating system"):
             PathResolver(env, fs)
 
-    def test_get_local_install_dir_in_git_repo(self) -> None:
-        """Validates local install finds .github relative to git repo root.
+    @pytest.mark.parametrize(
+        ("existing_paths", "cwd", "expected_github"),
+        [
+            # In git repo
+            ({Path("/test/repo/.git")}, Path("/test/repo"), Path("/test/repo/.github")),
+            # Not in git repo - fallback to cwd
+            (set(), Path("/some/random/dir"), Path("/some/random/dir/.github")),
+        ],
+    )
+    def test_get_local_install_dir(
+        self, existing_paths: set, cwd: Path, expected_github: Path
+    ) -> None:
+        """Validates local install dir detection in/outside git repos.
 
-        Tests get_local_install_dir walks up directory tree to find .git,
-        returns sibling .github directory for repo-local installation.
+        Parameterized test covering: (1) inside git repo - finds .git and
+        returns sibling .github, (2) outside git repo - falls back to
+        cwd/.github for non-repo local installation.
 
         Args:
             self: Test fixture
+            existing_paths: Set of paths that exist in mock fs
+            cwd: Mock current working directory
+            expected_github: Expected .github path
 
         Returns:
             None (pytest test method)
 
         Raises:
-            AssertionError: If .github path not relative to repo root
+            AssertionError: If resolved path != expected
 
-        Testing Principles: Git repo detection, parent traversal
+        Testing Principles: Git repo detection, fallback behavior
 
-        Arrangement: MockFileSystem w/ /test/repo/.git existing
+        Arrangement: MockFileSystem w/ existing_paths, custom _cwd
         Action: Call get_local_install_dir()
-        Assertion: Returns Path("/test/repo/.github")
+        Assertion: Returns expected .github path
 
         Examples:
             ```python
-            fs = MockFileSystem(existing_paths={Path("/repo/.git")})
-            assert resolver.get_local_install_dir() == Path("/repo/.github")
+            # In repo: /project/.git -> /project/.github
+            # Not in repo: /dir -> /dir/.github
             ```
         """
-        fs = MockFileSystem(existing_paths={Path("/test/repo/.git")})
+        fs = MockFileSystem(existing_paths=existing_paths)
+        fs._cwd = cwd
         env = MockEnvironment()
         resolver = PathResolver(env, fs)
-
-        local_dir = resolver.get_local_install_dir()
-        assert local_dir == Path("/test/repo/.github")
-
-    def test_get_local_install_dir_not_in_git_repo(self) -> None:
-        """Validates fallback to cwd/.github when not in git repository.
-
-        Tests get_local_install_dir returns cwd-based .github path when no
-        .git directory found in parent tree. Enables use outside git repos.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If path not based on cwd
-
-        Testing Principles: Fallback behavior, non-git-repo support
-
-        Arrangement: MockFileSystem w/ no .git, custom _cwd
-        Action: Call get_local_install_dir()
-        Assertion: Returns cwd/.github
-
-        Examples:
-            ```python
-            fs._cwd = Path("/some/dir")
-            assert resolver.get_local_install_dir() == Path("/some/dir/.github")
-            ```
-        """
-        fs = MockFileSystem(existing_paths=set())
-        fs._cwd = Path("/some/random/dir")
-        env = MockEnvironment()
-        resolver = PathResolver(env, fs)
-
-        local_dir = resolver.get_local_install_dir()
-        assert local_dir == Path("/some/random/dir/.github")
+        assert resolver.get_local_install_dir() == expected_github
 
 
 class TestEditorDetector:
     """Tests for EditorDetector class.
 
-    Categories: • Detection (2) • Fallback (1)
-    Strategy: MockFileSystem w/ existing config dirs, verify priority
-    Total: 3 tests
+    Categories: • Detection (1 parameterized w/ 3 cases)
+    Strategy: Parameterized existing config paths, verify detection
+    Total: 1 parameterized test (3 cases)
     """
 
-    def test_detect_code(self) -> None:
-        """Validates detection of stable VS Code via config directory.
+    @pytest.mark.parametrize(
+        ("existing_paths", "expected_editor"),
+        [
+            # Stable Code exists
+            ({Path("/home/user/.config/Code/User")}, "Code"),
+            # Insiders exists (checked first)
+            ({Path("/home/user/.config/Code - Insiders/User")}, "Code-Insiders"),
+            # Neither exists - default to Code
+            (set(), "Code"),
+        ],
+    )
+    def test_detect_installed_editor(
+        self, existing_paths: set, expected_editor: str
+    ) -> None:
+        """Validates editor detection based on config directory existence.
 
-        Tests EditorDetector finds stable Code when its config directory
-        exists, confirming installation detection via filesystem presence.
+        Parameterized test covering 3 scenarios: (1) stable Code exists,
+        (2) Insiders exists and is preferred, (3) neither exists so
+        default to stable Code. Verifies priority ordering.
 
         Args:
             self: Test fixture
+            existing_paths: Set of paths that exist in mock fs
+            expected_editor: Expected detected editor string
 
         Returns:
             None (pytest test method)
 
         Raises:
-            AssertionError: If "Code" not returned when config exists
+            AssertionError: If detected editor != expected
 
-        Testing Principles: Installation detection, filesystem-based discovery
+        Testing Principles: Detection priority, default behavior
 
-        Arrangement: MockFileSystem w/ ~/.config/Code/User existing
+        Arrangement: MockFileSystem w/ existing config paths
         Action: Call detect_installed_editor()
-        Assertion: Returns "Code"
+        Assertion: Returns expected editor string
 
         Examples:
             ```python
-            fs = MockFileSystem(existing_paths={Path("~/.config/Code/User")})
-            assert detector.detect_installed_editor() == "Code"
+            # Insiders preferred when present
+            # Falls back to "Code" when nothing found
             ```
         """
         env = MockEnvironment(system="Linux", home=Path("/home/user"))
-        fs = MockFileSystem(existing_paths={Path("/home/user/.config/Code/User")})
+        fs = MockFileSystem(existing_paths=existing_paths)
         resolver = PathResolver(env, fs)
         detector = EditorDetector(resolver, fs)
-
-        editor = detector.detect_installed_editor()
-        assert editor == "Code"
-
-    def test_detect_code_insiders(self) -> None:
-        """Validates Insiders detection when its config exists.
-
-        Tests EditorDetector returns Code-Insiders when its config directory
-        exists. Insiders checked first due to developer preference.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If "Code-Insiders" not detected when present
-
-        Testing Principles: Priority ordering, Insiders preference
-
-        Arrangement: MockFileSystem w/ Code-Insiders config existing
-        Action: Call detect_installed_editor()
-        Assertion: Returns "Code-Insiders"
-
-        Examples:
-            ```python
-            fs = MockFileSystem(existing_paths={Path("~/.config/Code - Insiders/User")})
-            assert detector.detect_installed_editor() == "Code-Insiders"
-            ```
-        """
-        env = MockEnvironment(system="Linux", home=Path("/home/user"))
-        fs = MockFileSystem(
-            existing_paths={Path("/home/user/.config/Code - Insiders/User")}
-        )
-        resolver = PathResolver(env, fs)
-        detector = EditorDetector(resolver, fs)
-
-        editor = detector.detect_installed_editor()
-        assert editor == "Code-Insiders"
-
-    def test_default_to_code(self) -> None:
-        """Validates fallback to "Code" when no VS Code installation found.
-
-        Tests EditorDetector defaults to stable Code when neither Code nor
-        Insiders config directories exist. Provides reasonable default.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If default not "Code"
-
-        Testing Principles: Sensible defaults, fallback behavior
-
-        Arrangement: MockFileSystem w/ no VS Code config dirs
-        Action: Call detect_installed_editor()
-        Assertion: Returns "Code" as default
-
-        Examples:
-            ```python
-            fs = MockFileSystem()  # No paths exist
-            assert detector.detect_installed_editor() == "Code"
-            ```
-        """
-        env = MockEnvironment(system="Linux", home=Path("/home/user"))
-        fs = MockFileSystem()
-        resolver = PathResolver(env, fs)
-        detector = EditorDetector(resolver, fs)
-
-        editor = detector.detect_installed_editor()
-        assert editor == "Code"
+        assert detector.detect_installed_editor() == expected_editor
 
 
 class TestAgentInstaller:
@@ -1339,19 +1187,30 @@ class TestCreateInstaller:
 class TestMain:
     """Tests for main CLI function.
 
-    Categories: • Basic (2) • Flags (3) • Logging (1)
-    Strategy: Patch sys.argv, verify SystemExit codes, capture stdout
-    Total: 6 tests
+    Categories: • Flags (1 parameterized) • Errors (1) • Logging (1 parameterized)
+    Strategy: Parameterized argv combinations, verify exit codes
+    Total: 3 tests
     """
 
-    def test_main_local_install_dry_run(self) -> None:
-        """Validates main() w/ --dry-run performs local install preview.
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            ["copilot-confirm", "--dry-run"],
+            ["copilot-confirm", "--global", "--dry-run"],
+            ["copilot-confirm", "--global", "--insiders", "--dry-run"],
+            ["copilot-confirm", "--log-level", "DEBUG", "--dry-run"],
+        ],
+    )
+    def test_main_valid_flag_combinations(self, argv: list) -> None:
+        """Validates main() accepts various valid flag combinations.
 
-        Tests CLI entry point w/ dry-run flag exits cleanly (0 or 1 depending
-        on file existence). Default mode is local install.
+        Parameterized test covering 4 CLI flag combos: dry-run only,
+        global+dry-run, global+insiders+dry-run, log-level+dry-run.
+        All should exit w/ 0 or 1 (file existence dependent).
 
         Args:
             self: Test fixture
+            argv: Command-line argument list to test
 
         Returns:
             None (pytest test method)
@@ -1359,33 +1218,31 @@ class TestMain:
         Raises:
             AssertionError: If exit code not in (0, 1)
 
-        Testing Principles: CLI arg parsing, dry-run behavior, exit codes
+        Testing Principles: CLI arg parsing, flag combinations
 
-        Arrangement: Patch sys.argv w/ ["copilot-confirm", "--dry-run"]
-        Action: Call main(), get return code
-        Assertion: Return code in (0, 1)
+        Arrangement: Patch sys.argv w/ test argv
+        Action: Call main(), capture exit code
+        Assertion: Exit code in (0, 1)
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--dry-run"]):
-                code = main()
-                assert code in (0, 1)
+                assert main() in (0, 1)
             ```
         """
-        with patch("sys.argv", ["copilot-confirm", "--dry-run"]):
+        with patch("sys.argv", argv):
             code = main()
-            # May return 0 or 1 depending on file existence
             assert code in (0, 1)
 
     def test_main_both_global_and_local_error(self, capsys) -> None:
-        """Validates main() rejects --global and --local together.
+        """Validates main() rejects mutually exclusive --global and --local.
 
         Tests CLI entry point exits w/ error when both flags specified.
-        Verifies error message printed to stdout.
+        Verifies error message printed to stdout for user guidance.
 
         Args:
             self: Test fixture
-            capsys: pytest fixture for capturing stdout/stderr
+            capsys: pytest stdout/stderr capture fixture
 
         Returns:
             None (pytest test method)
@@ -1396,13 +1253,13 @@ class TestMain:
         Testing Principles: Mutually exclusive args, error messaging
 
         Arrangement: Patch sys.argv w/ both --global and --local
-        Action: Call main(), get return code, capture output
-        Assertion: Return code == 1, "Cannot specify both" in output
+        Action: Call main(), capture output
+        Assertion: Returns 1, "Cannot specify both" in output
 
         Examples:
             ```python
-            with patch("sys.argv", ["copilot-confirm", "--global", "--local"]):
-                code = main()  # Returns 1 w/ error message
+            with patch("sys.argv", [..., "--global", "--local"]):
+                assert main() == 1  # Error exit
             ```
         """
         with patch("sys.argv", ["copilot-confirm", "--global", "--local"]):
@@ -1411,109 +1268,11 @@ class TestMain:
             captured = capsys.readouterr()
             assert "Cannot specify both" in captured.out
 
-    def test_main_global_install(self) -> None:
-        """Validates main() w/ --global performs global install.
-
-        Tests CLI entry point w/ --global flag attempts global installation
-        to VS Code config directory.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If exit code not in (0, 1)
-
-        Testing Principles: Global flag handling, install mode selection
-
-        Arrangement: Patch sys.argv w/ --global --dry-run
-        Action: Call main(), get return code
-        Assertion: Return code in (0, 1)
-
-        Examples:
-            ```python
-            with patch("sys.argv", ["copilot-confirm", "--global", "--dry-run"]):
-                code = main()  # Attempts global install
-            ```
-        """
-        with patch("sys.argv", ["copilot-confirm", "--global", "--dry-run"]):
-            code = main()
-            assert code in (0, 1)
-
-    def test_main_with_insiders_flag(self) -> None:
-        """Validates main() w/ --insiders targets VS Code Insiders.
-
-        Tests CLI entry point w/ --insiders flag selects Code-Insiders
-        as target editor for global installation.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If exit code not in (0, 1)
-
-        Testing Principles: Insiders flag handling, editor selection
-
-        Arrangement: Patch sys.argv w/ --global --insiders --dry-run
-        Action: Call main(), get return code
-        Assertion: Return code in (0, 1)
-
-        Examples:
-            ```python
-            with patch("sys.argv", ["copilot-confirm", "--global", "--insiders"]):
-                code = main()  # Targets Code-Insiders
-            ```
-        """
-        with patch(
-            "sys.argv",
-            ["copilot-confirm", "--global", "--insiders", "--dry-run"],
-        ):
-            code = main()
-            assert code in (0, 1)
-
-    def test_main_with_log_level(self) -> None:
-        """Validates main() w/ --log-level sets logging verbosity.
-
-        Tests CLI entry point w/ --log-level DEBUG enables verbose logging
-        for troubleshooting installation issues.
-
-        Args:
-            self: Test fixture
-
-        Returns:
-            None (pytest test method)
-
-        Raises:
-            AssertionError: If exit code not in (0, 1)
-
-        Testing Principles: Log level arg parsing, logging configuration
-
-        Arrangement: Patch sys.argv w/ --log-level DEBUG --dry-run
-        Action: Call main(), get return code
-        Assertion: Return code in (0, 1)
-
-        Examples:
-            ```python
-            with patch("sys.argv", ["copilot-confirm", "--log-level", "DEBUG"]):
-                code = main()  # Runs w/ DEBUG logging
-            ```
-        """
-        with patch(
-            "sys.argv", ["copilot-confirm", "--log-level", "DEBUG", "--dry-run"]
-        ):
-            code = main()
-            assert code in (0, 1)
-
     def test_main_with_log_file(self) -> None:
-        """Validates main() w/ --log-file creates file handler.
+        """Validates main() w/ --log-file creates FileHandler.
 
         Tests CLI entry point w/ --log-file writes logs to specified file
-        in addition to console output. Uses mocked FileHandler.
+        in addition to console. Uses mocked FileHandler to avoid real I/O.
 
         Args:
             self: Test fixture
@@ -1524,20 +1283,20 @@ class TestMain:
         Raises:
             AssertionError: If exit code not in (0, 1)
 
-        Testing Principles: Log file arg parsing, FileHandler creation
+        Testing Principles: Log file arg, FileHandler creation
 
         Arrangement: Mock FileHandler + Path.mkdir, patch sys.argv
-        Action: Call main(), get return code
-        Assertion: Return code in (0, 1)
+        Action: Call main() w/ --log-file flag
+        Assertion: Exit code in (0, 1)
 
         Examples:
             ```python
-            with patch("sys.argv", ["copilot-confirm", "--log-file", "/tmp/log"]):
-                code = main()  # Writes to /tmp/log
+            with patch("sys.argv", [..., "--log-file", "/tmp/log"]):
+                main()  # Creates log file handler
             ```
         """
         mock_file_handler = MagicMock()
-        mock_file_handler.level = 10  # Provide a real int for level comparison
+        mock_file_handler.level = 10
 
         with (
             patch(
