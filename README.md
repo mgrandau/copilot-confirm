@@ -18,7 +18,7 @@ Copilot Confirm installs custom agent and instruction files that modify how GitH
 
 ### Example Workflow
 
-```
+```text
 You: "Refactor this function"
 
 Copilot: "Options:
@@ -87,7 +87,8 @@ pdm run copilot-confirm --local     # Current repository
 ### What Gets Installed
 
 **Local Install** (`.github/`):
-```
+
+```text
 .github/
 ├── agents/
 │   └── copilot_confirm.agent.md
@@ -96,7 +97,8 @@ pdm run copilot-confirm --local     # Current repository
 ```
 
 **Global Install** (VS Code User directory):
-```
+
+```text
 ~/.config/Code/User/prompts/           # Linux
 ~/Library/Application Support/Code/User/prompts/  # macOS
 %APPDATA%\Code\User\prompts\           # Windows
@@ -136,7 +138,7 @@ pdm run security
 
 ## 📁 Project Structure
 
-```
+```text
 copilot-confirm/
 ├── src/copilot_confirm/
 │   ├── __init__.py
@@ -163,6 +165,7 @@ AI-readable architectural contracts for each component:
 | **prompts** | [`.github/prompts/README.md`](.github/prompts/README.md) | Prompt library: docstrings, tests, code review, architecture |
 
 These READMEs follow a standardized format with:
+
 - Public API surface (🔒frozen, ⚠️internal)
 - Dependencies and invariants
 - AI-accessibility maps for safe modifications

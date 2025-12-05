@@ -43,4 +43,4 @@ jobs:
 
       - name: Check coverage threshold
         run: |
-          pdm run pytest tests/ --cov=src/copilot_confirm --cov-branch --cov-fail-under=80
+          pdm run python -m pytest tests/ --cov=src/copilot_confirm --cov-branch --cov-fail-under=80
