@@ -1000,6 +1000,44 @@ class TestAgentInstaller:
         assert result.success is False
         assert "Could not find Code configuration directory" in result.error_message
 
+    def test_install_global_invalid_editor_raises(self) -> None:
+        """Validates ValueError raised for invalid editor parameter.
+
+        Tests install_global validates editor against SUPPORTED_EDITORS and
+        raises ValueError w/ helpful message listing valid options.
+
+        Args:
+            self: Test fixture
+
+        Returns:
+            None (pytest test method)
+
+        Raises:
+            AssertionError: If ValueError not raised or message incorrect
+
+        Testing Principles: Input validation, fail-fast, helpful errors
+
+        Arrangement: Create installer w/ MockFileSystem
+        Action: Call install_global(editor="InvalidEditor")
+        Assertion: ValueError raised w/ message listing valid editors
+
+        Examples:
+            ```python
+            with pytest.raises(ValueError, match="Invalid editor"):
+                installer.install_global(editor="NotAValidEditor")
+            ```
+        """
+        fs = MockFileSystem(existing_paths={Path("/test/agent_files")})
+        installer = self._create_installer(fs)
+
+        with pytest.raises(ValueError) as exc_info:
+            installer.install_global(editor="InvalidEditor", dry_run=False)
+
+        error_msg = str(exc_info.value)
+        assert "Invalid editor 'InvalidEditor'" in error_msg
+        assert "Code-Insiders" in error_msg
+        assert "Code" in error_msg
+
     def test_install_copy_error(self) -> None:
         """Validates graceful error handling when file copy fails.
 
@@ -1302,22 +1340,20 @@ class TestMain:
         Testing Principles: CLI arg parsing, dry-run behavior, exit codes
 
         Arrangement: Patch sys.argv w/ ["copilot-confirm", "--dry-run"]
-        Action: Call main(), catch SystemExit
-        Assertion: Exit code in (0, 1)
+        Action: Call main(), get return code
+        Assertion: Return code in (0, 1)
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--dry-run"]):
-                with pytest.raises(SystemExit) as exc:
-                    main()
-                assert exc.value.code in (0, 1)
+                code = main()
+                assert code in (0, 1)
             ```
         """
         with patch("sys.argv", ["copilot-confirm", "--dry-run"]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            # May exit 0 or 1 depending on file existence
-            assert exc_info.value.code in (0, 1)
+            code = main()
+            # May return 0 or 1 depending on file existence
+            assert code in (0, 1)
 
     def test_main_both_global_and_local_error(self, capsys) -> None:
         """Validates main() rejects --global and --local together.
@@ -1338,19 +1374,18 @@ class TestMain:
         Testing Principles: Mutually exclusive args, error messaging
 
         Arrangement: Patch sys.argv w/ both --global and --local
-        Action: Call main(), catch SystemExit, capture output
-        Assertion: Exit code == 1, "Cannot specify both" in output
+        Action: Call main(), get return code, capture output
+        Assertion: Return code == 1, "Cannot specify both" in output
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--global", "--local"]):
-                main()  # Exits 1 w/ error message
+                code = main()  # Returns 1 w/ error message
             ```
         """
         with patch("sys.argv", ["copilot-confirm", "--global", "--local"]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code == 1
+            code = main()
+            assert code == 1
             captured = capsys.readouterr()
             assert "Cannot specify both" in captured.out
 
@@ -1372,19 +1407,18 @@ class TestMain:
         Testing Principles: Global flag handling, install mode selection
 
         Arrangement: Patch sys.argv w/ --global --dry-run
-        Action: Call main(), catch SystemExit
-        Assertion: Exit code in (0, 1)
+        Action: Call main(), get return code
+        Assertion: Return code in (0, 1)
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--global", "--dry-run"]):
-                main()  # Attempts global install
+                code = main()  # Attempts global install
             ```
         """
         with patch("sys.argv", ["copilot-confirm", "--global", "--dry-run"]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code in (0, 1)
+            code = main()
+            assert code in (0, 1)
 
     def test_main_with_insiders_flag(self) -> None:
         """Validates main() w/ --insiders targets VS Code Insiders.
@@ -1404,22 +1438,21 @@ class TestMain:
         Testing Principles: Insiders flag handling, editor selection
 
         Arrangement: Patch sys.argv w/ --global --insiders --dry-run
-        Action: Call main(), catch SystemExit
-        Assertion: Exit code in (0, 1)
+        Action: Call main(), get return code
+        Assertion: Return code in (0, 1)
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--global", "--insiders"]):
-                main()  # Targets Code-Insiders
+                code = main()  # Targets Code-Insiders
             ```
         """
         with patch(
             "sys.argv",
             ["copilot-confirm", "--global", "--insiders", "--dry-run"],
         ):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code in (0, 1)
+            code = main()
+            assert code in (0, 1)
 
     def test_main_with_log_level(self) -> None:
         """Validates main() w/ --log-level sets logging verbosity.
@@ -1439,21 +1472,20 @@ class TestMain:
         Testing Principles: Log level arg parsing, logging configuration
 
         Arrangement: Patch sys.argv w/ --log-level DEBUG --dry-run
-        Action: Call main(), catch SystemExit
-        Assertion: Exit code in (0, 1)
+        Action: Call main(), get return code
+        Assertion: Return code in (0, 1)
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--log-level", "DEBUG"]):
-                main()  # Runs w/ DEBUG logging
+                code = main()  # Runs w/ DEBUG logging
             ```
         """
         with patch(
             "sys.argv", ["copilot-confirm", "--log-level", "DEBUG", "--dry-run"]
         ):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code in (0, 1)
+            code = main()
+            assert code in (0, 1)
 
     def test_main_with_log_file(self) -> None:
         """Validates main() w/ --log-file creates file handler.
@@ -1473,13 +1505,13 @@ class TestMain:
         Testing Principles: Log file arg parsing, FileHandler creation
 
         Arrangement: Mock FileHandler + Path.mkdir, patch sys.argv
-        Action: Call main(), catch SystemExit
-        Assertion: Exit code in (0, 1)
+        Action: Call main(), get return code
+        Assertion: Return code in (0, 1)
 
         Examples:
             ```python
             with patch("sys.argv", ["copilot-confirm", "--log-file", "/tmp/log"]):
-                main()  # Writes to /tmp/log
+                code = main()  # Writes to /tmp/log
             ```
         """
         mock_file_handler = MagicMock()
@@ -1496,6 +1528,5 @@ class TestMain:
                 ["copilot-confirm", "--log-file", "/fake/install.log", "--dry-run"],
             ),
         ):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code in (0, 1)
+            code = main()
+            assert code in (0, 1)

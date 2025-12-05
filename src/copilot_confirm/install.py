@@ -449,6 +449,7 @@ class EditorDetector:
 
     Attributes:
         SUPPORTED_EDITORS: ["Code-Insiders", "Code"] - check order matters.
+        DEFAULT_EDITOR: Fallback editor when none detected ("Code").
         path_resolver: For getting config dir paths.
         fs: For exists() checks.
 
@@ -457,14 +458,18 @@ class EditorDetector:
 
     # Check Insiders first since users running Insiders typically prefer it
     SUPPORTED_EDITORS = ["Code-Insiders", "Code"]
+    # Default fallback when no editor config directory found
+    DEFAULT_EDITOR = "Code"
 
     def __init__(self, path_resolver: PathResolver, fs: FileSystemProtocol):
-        """
-        Initialize the editor detector.
+        """Initialize editor detector with path resolution and filesystem access.
+
+        Business: Wires up dependencies for auto-selecting VS Code variant
+        during global install when user doesn't specify --editor flag.
 
         Args:
-            path_resolver: Path resolution service
-            fs: File system operations provider
+            path_resolver: Path resolution service for config directories.
+            fs: File system operations provider for exists() checks.
         """
         self.path_resolver = path_resolver
         self.fs = fs
@@ -493,8 +498,8 @@ class EditorDetector:
             if config_dir and self.fs.exists(config_dir):
                 return editor
 
-        # Default to Code if none found
-        return "Code"
+        # Default fallback if no editor config found
+        return self.DEFAULT_EDITOR
 
 
 class AgentInstaller:
@@ -505,6 +510,7 @@ class AgentInstaller:
     Provides dry-run mode for safe preview.
 
     Attributes:
+        SOURCE_FILES: Single source of truth for agent file paths.
         LOCAL_FILES: FileMapping list for local install (agents/ + instructions/).
         GLOBAL_FILES: FileMapping list for global install (prompts/).
         agent_files_dir: Source directory containing files to install.
@@ -517,29 +523,18 @@ class AgentInstaller:
     Uses DI for testability - no direct I/O, all via protocols.
     """
 
-    # Files to install - source paths relative to agent_files_dir
-    # Local install: .github/agents/ and .github/instructions/
-    # Global install: prompts/ (VS Code User promptsHome)
-    LOCAL_FILES: list[FileMapping] = [
-        FileMapping(
-            "agents/copilot_confirm.agent.md",
-            "agents/copilot_confirm.agent.md",
-        ),
-        FileMapping(
-            "instructions/confirmation_workflow.instructions.md",
-            "instructions/confirmation_workflow.instructions.md",
-        ),
+    # Single source of truth for agent file paths (relative to agent_files_dir)
+    SOURCE_FILES: list[str] = [
+        "agents/copilot_confirm.agent.md",
+        "instructions/confirmation_workflow.instructions.md",
     ]
 
+    # Local install: preserve directory structure under .github/
+    LOCAL_FILES: list[FileMapping] = [FileMapping(src, src) for src in SOURCE_FILES]
+
+    # Global install: flatten to prompts/ directory
     GLOBAL_FILES: list[FileMapping] = [
-        FileMapping(
-            "agents/copilot_confirm.agent.md",
-            "prompts/copilot_confirm.agent.md",
-        ),
-        FileMapping(
-            "instructions/confirmation_workflow.instructions.md",
-            "prompts/confirmation_workflow.instructions.md",
-        ),
+        FileMapping(src, f"prompts/{Path(src).name}") for src in SOURCE_FILES
     ]
 
     def __init__(
@@ -550,15 +545,17 @@ class AgentInstaller:
         editor_detector: EditorDetector,
         logger: logging.Logger,
     ):
-        """
-        Initialize the agent installer.
+        """Initialize agent installer with all required dependencies.
+
+        Business: Wires up installer for local/global agent file installation.
+        Uses DI pattern for testability - all I/O via injected protocols.
 
         Args:
-            agent_files_dir: Directory containing agent files to install
-            fs: File system operations provider
-            path_resolver: Path resolution service
-            editor_detector: Editor detection service
-            logger: Logger instance for output
+            agent_files_dir: Directory containing agent files to install.
+            fs: File system operations provider for read/write/mkdir.
+            path_resolver: Path resolution service for target directories.
+            editor_detector: Editor detection service for --global auto-detect.
+            logger: Logger instance for user feedback during install.
         """
         self.agent_files_dir = agent_files_dir
         self.fs = fs
@@ -759,6 +756,9 @@ class AgentInstaller:
             InstallationResult: success, files_copied, target_dir, error_message
             if editor config dir not found.
 
+        Raises:
+            ValueError: If editor not in SUPPORTED_EDITORS {"Code", "Code-Insiders"}.
+
         Examples:
             ```python
             result = installer.install_global(editor="Code-Insiders", dry_run=True)
@@ -767,6 +767,13 @@ class AgentInstaller:
 
         Technical: Calls get_vscode_config_dir() + install_files(). O(n) copies.
         """
+        # Validate editor parameter if provided
+        if editor is not None and editor not in EditorDetector.SUPPORTED_EDITORS:
+            valid_editors = ", ".join(EditorDetector.SUPPORTED_EDITORS)
+            raise ValueError(
+                f"Invalid editor '{editor}'. Must be one of: {valid_editors}"
+            )
+
         if editor is None:
             editor = self.editor_detector.detect_installed_editor()
             self.logger.info(f"🔍 Auto-detected editor: {editor}")
@@ -853,11 +860,11 @@ def create_installer(
 # ============================================================================
 
 
-def main() -> None:
-    """CLI entry point for copilot-confirm installation.
+def main() -> int:
+    """CLI entry point for copilot-confirm installation → exit code.
 
     Parses args, configures logging, creates installer, executes install.
-    Exits w/ code 0 on success, 1 on failure.
+    Returns exit code for testability (caller handles sys.exit).
 
     Business: Provides user-friendly CLI for installing Copilot agents.
     Supports local (default) and global modes, dry-run preview, debug logging.
@@ -866,12 +873,18 @@ def main() -> None:
         None (reads sys.argv)
 
     Returns:
-        None (calls sys.exit())
+        int: Exit code. 0=success, 1=failure or invalid args.
 
     Raises:
-        SystemExit: Always exits. Code 0=success, 1=failure or --help/--version.
+        SystemExit: Only from argparse --help/--version.
 
     Examples:
+        ```python
+        # Direct testing
+        code = main()
+        assert code == 0
+        ```
+
         ```bash
         copilot-confirm --global --insiders --dry-run
         copilot-confirm --local --log-level DEBUG
@@ -962,7 +975,7 @@ Examples:
     # Can't specify both
     if args.install_global and args.install_local:
         print("❌ Error: Cannot specify both --global and --local")
-        sys.exit(1)
+        return 1
 
     # Configure logging
     logger = setup_logging(level=args.log_level, log_file=args.log_file)
@@ -982,8 +995,8 @@ Examples:
     else:
         result = installer.install_local(args.dry_run)
 
-    sys.exit(0 if result.success else 1)
+    return 0 if result.success else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
