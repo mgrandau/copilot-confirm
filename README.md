@@ -43,26 +43,33 @@ Copilot: ✅ [implements DI pattern]
 
 - Python 3.13+
 - VS Code or VS Code Insiders
-- [PDM](https://pdm-project.org/) (for development)
 
-### Install from Source
+### Install via pip
+
+```bash
+# Install directly from GitHub
+pip install git+https://github.com/mgrandau/copilot-confirm.git
+
+# Install globally to VS Code
+copilot-confirm --global
+
+# Or install locally to current repository
+copilot-confirm --local
+```
+
+### Install from Source (Development)
 
 ```bash
 # Clone the repository
 git clone https://github.com/mgrandau/copilot-confirm.git
 cd copilot-confirm
 
-# Create virtual environment and install
+# Install with PDM (recommended for development)
 pdm install
 
-# Install globally to VS Code Insiders
-pdm run copilot-confirm --global --insiders
-
-# Or install globally to VS Code stable
-pdm run copilot-confirm --global
-
-# Or install locally to current repository
-pdm run copilot-confirm --local
+# Run the installer
+pdm run copilot-confirm --global    # VS Code stable
+pdm run copilot-confirm --local     # Current repository
 ```
 
 ### Installation Options
