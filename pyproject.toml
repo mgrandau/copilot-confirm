@@ -13,16 +13,6 @@ dependencies = []
 [project.scripts]
 copilot-confirm = "copilot_confirm.install:main"
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.8.0",
-    "bandit>=1.7.0",
-    "pytest>=8.0.0",
-    "pytest-cov>=4.0.0",
-    "mypy>=1.13.0",
-    "pre-commit>=4.0.0",
-]
-
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
@@ -33,6 +23,16 @@ distribution = true
 [tool.pdm.version]
 source = "file"
 path = "src/copilot_confirm/__version__.py"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "bandit>=1.7.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "mypy>=1.13.0",
+    "pre-commit>=4.0.0",
+]
 
 [tool.pdm.scripts]
 lint = "python -m ruff check src tests"
