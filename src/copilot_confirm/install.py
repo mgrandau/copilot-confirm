@@ -33,12 +33,21 @@ from typing import Protocol
 
 # Public API
 __all__ = [
+    # Factory & entry points
     "create_installer",
-    "InstallationResult",
-    "FileMapping",
-    "AgentInstaller",
     "setup_logging",
     "main",
+    # Core classes
+    "AgentInstaller",
+    "InstallationResult",
+    "FileMapping",
+    # Supporting classes
+    "PathResolver",
+    "EditorDetector",
+    "OperatingSystem",
+    # Protocols (for custom implementations)
+    "FileSystemProtocol",
+    "EnvironmentProtocol",
 ]
 
 # Constants
@@ -287,7 +296,7 @@ class FileMapping:
     dst_relative: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class InstallationResult:
     """Immutable result of an installation operation.
 
@@ -299,6 +308,7 @@ class InstallationResult:
         files_copied: Count of files successfully copied.
         target_dir: Destination directory path.
         error_message: Human-readable error if success=False, else None.
+        files_failed: Count of files that failed to copy (missing source, etc.).
 
     Examples:
         ```python
@@ -933,22 +943,22 @@ def main() -> int:
         epilog="""
 Examples:
   # Install locally to current repository (default)
-  python -m copilot_confirm.install
+  copilot-confirm
 
   # Install globally to VS Code
-  python -m copilot_confirm.install --global
+  copilot-confirm --global
 
   # Install globally to VS Code Insiders
-  python -m copilot_confirm.install --global --insiders
+  copilot-confirm --global --insiders
 
   # Dry run to see what would be installed
-  python -m copilot_confirm.install --global --dry-run
+  copilot-confirm --global --dry-run
 
   # Enable debug logging
-  python -m copilot_confirm.install --log-level DEBUG
+  copilot-confirm --log-level DEBUG
 
   # Save logs to file
-  python -m copilot_confirm.install --global --log-file install.log
+  copilot-confirm --global --log-file install.log
         """,
     )
 
