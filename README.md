@@ -1,10 +1,6 @@
 # Copilot Confirm
 
-[![CI](https://github.com/mgrandau/copilot-confirm/actions/workflows/ci.yml/badge.svg)](https://github.com/mgrandau/copilot-confirm/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Coverage: 100%](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/mgrandau/copilot-confirm)
+[![Version](https://img.shields.io/badge/version-0.1.0-informational.svg)](https://github.com/mgrandau/copilot-confirm/releases) [![CI](https://github.com/mgrandau/copilot-confirm/actions/workflows/ci.yml/badge.svg)](https://github.com/mgrandau/copilot-confirm/actions/workflows/ci.yml) [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/) [![Type: mypy](https://img.shields.io/badge/type-mypy-blue.svg)](https://mypy-lang.org/) [![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 A behavior customization tool for GitHub Copilot that enforces a deliberate, confirmation-based workflow. Instead of Copilot acting immediately, it presents ranked options with confidence percentages and waits for your approval before executing.
 
