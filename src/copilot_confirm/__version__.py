@@ -1,7 +1,7 @@
 """Version information for copilot-confirm."""
 
-__version__ = "0.1.0"
-__version_date__ = "2025-12-04"
+__version__ = "0.1.1"
+__version_date__ = "2026-01-31"
 
 __title__ = "copilot_confirm"
 __description__ = (
