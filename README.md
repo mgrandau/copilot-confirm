@@ -178,6 +178,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## 🤖 OpenClaw Skill
+
+This repo also includes an [OpenClaw](https://github.com/openclaw/openclaw) skill at `skill/copilot-confirm/`. To install it, copy the skill folder to your OpenClaw skills directory:
+
+```bash
+cp -r skill/copilot-confirm /path/to/openclaw/skills/
+```
+
+This gives OpenClaw agents the same confirmation workflow — present options with percentages, wait for approval, then execute.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
