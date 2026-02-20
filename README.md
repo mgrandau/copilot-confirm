@@ -192,6 +192,10 @@ This gives OpenClaw agents the same confirmation workflow — present options wi
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 💬 Community
+
+💬 [Join the Discord community](https://discord.gg/2KqjHvh5)
+
 ## 📬 Contact
 
 For questions, issues, or suggestions, please [open an issue](https://github.com/mgrandau/copilot-confirm/issues) on GitHub.
