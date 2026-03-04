@@ -2,11 +2,19 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/mgrandau/copilot-confirm?style=flat)](https://github.com/mgrandau/copilot-confirm/releases) [![CI](https://github.com/mgrandau/copilot-confirm/actions/workflows/ci.yml/badge.svg)](https://github.com/mgrandau/copilot-confirm/actions/workflows/ci.yml) [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/) [![Type: mypy](https://img.shields.io/badge/type-mypy-blue.svg)](https://mypy-lang.org/) [![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-A behavior customization tool for GitHub Copilot that enforces a deliberate, confirmation-based workflow. Instead of Copilot acting immediately, it presents ranked options with confidence percentages and waits for your approval before executing.
+Stop Copilot from acting before you've decided what to do.
+
+## 🧭 Intent
+
+AI coding agents default to action — they see a problem and start solving it. That's fine when they guess right. When they guess wrong, you've lost time undoing work you never asked for.
+
+This tool exists because **the gap between intent and action is where mistakes happen.** Copilot Confirm closes that gap by forcing a pause: the agent presents options with confidence percentages, waits for your explicit choice, then executes. It implements the concepts from [The Better Agent: Homing Intent Through Probabilistic Feedback](https://mgrandau.medium.com/the-better-agent-homing-intent-through-probabilistic-feedback-d545466ebe6d?source=friends_link&sk=5a46e536997eb087c5ced4c0cee08679).
+
+The design follows the [Human-AI Intent Transfer Principles](https://mgrandau.medium.com/human-ai-intent-transfer-principles-b6e7404e3d26?source=friends_link&sk=858917bd3f4a686974ed6b6c9c059ac8): the confirmation workflow is an intent transfer mechanism — it makes the human's choice explicit before the AI acts. The ranked options preserve optionality. The confidence percentages make the AI's reasoning inspectable. The pause calibrates trust by consequence.
+
+These principles shaped the project itself: the [project plan](docs/PROJECT_PLAN.md) documents goals and risk posture per phase, and 16 issues were filed and resolved to drive quality before shipping.
 
 ## 🎯 What It Does
-
-Copilot Confirm installs custom agent and instruction files that modify how GitHub Copilot behaves. This tool implements the concepts from [The Better Agent: Homing Intent Through Probabilistic Feedback](https://mgrandau.medium.com/the-better-agent-homing-intent-through-probabilistic-feedback-d545466ebe6d?source=friends_link&sk=5a46e536997eb087c5ced4c0cee08679).
 
 - **Presents Options First**: Shows 2-3 ranked options with confidence percentages before taking action
 - **Waits for Confirmation**: Stops and waits for your explicit approval (e.g., "1", "option 2", "DI")

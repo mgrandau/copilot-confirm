@@ -1,20 +1,56 @@
 ---
 applyTo: '**'
 ---
+
+# Project Intent & Design
+
+This project follows the [Human-AI Intent Transfer Principles](https://mgrandau.medium.com/human-ai-intent-transfer-principles-b6e7404e3d26?source=friends_link&sk=858917bd3f4a686974ed6b6c9c059ac8) — the confirmation workflow IS the intent transfer mechanism.
+
+**Context chain (read in order when making design decisions):**
+
+1. [🧭 Intent](../../README.md#-intent) — project philosophy: the gap between intent and action is where mistakes happen
+2. [PROJECT_PLAN.md](../../docs/PROJECT_PLAN.md) — phase goals, risk posture, issue history
+3. [Architecture](../../src/copilot_confirm/README.md) — component map, invariants, DI contracts, AI-accessibility map
+4. Source code — the implementation
+
+**Core design values:**
+
+- **Zero runtime dependencies** — stdlib only, no pip installs needed beyond the package itself
+- **Protocol-based DI** — testability without mocks, `FileSystemProtocol` / `EnvironmentProtocol`
+- **Agent ≠ instruction** — the agent file defines the persona, the instruction file defines the workflow. Separate concerns.
+- **Frozen results** — `InstallationResult` and `FileMapping` are immutable. Downstream can't mutate install state.
+- **Minimal effective instructions** — the confirmation workflow is ~15 lines. Verbose instructions get ignored by LLMs.
+- **Quality before shipping** — 12 code review issues filed and resolved in Phase 1 before any user touched it
+
 # Development Instructions for copilot-confirm
 
-## Version Management
+## Release Process
 
-Version is stored in `src/copilot_confirm/__version__.py`:
-- `__version__` - semver string (e.g., "1.0.0")
-- `__version_date__` - release date (e.g., "2026-01-26")
+### Version Badge
 
-To release a new version:
+The README badge auto-updates from GitHub releases — no manual badge edits needed.
+
+### Release Steps
+
 1. Update `__version__` and `__version_date__` in `src/copilot_confirm/__version__.py`
-2. Commit with message: `chore: bump version to X.Y.Z`
-3. Create GitHub release with tag `vX.Y.Z`
+2. Commit changes: `git commit -am "release: bump version to X.X.X"`
+3. Create and push tag: `git tag vX.X.X && git push origin vX.X.X`
+4. Create GitHub release with **changelog notes** covering:
+   - **Bug Fixes** — issues fixed with brief description
+   - **Features** — new functionality added
+   - **Documentation** — significant doc improvements
+   - Link to full changelog comparison: `https://github.com/mgrandau/copilot-confirm/compare/vPREV...vX.X.X`
 
-The README badge auto-updates from GitHub release tags.
+### Changelog Requirements
+
+- Every release **must** have human-written changelog notes — do not rely solely on `--generate-notes`
+- Reference issue numbers (e.g., "Fixed #16: sync confirmation workflow")
+- Keep notes concise but meaningful — someone reading them should understand what changed and why
+
+### Notes
+
+- Tags must match pattern `vX.X.X` (e.g., `v0.1.1`)
+- Badge updates within minutes of release creation
 
 ## Build & Test Commands
 
