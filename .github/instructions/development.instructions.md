@@ -10,8 +10,9 @@ This project follows the [Human-AI Intent Transfer Principles](https://mgrandau.
 
 1. [🧭 Intent](../../README.md#-intent) — project philosophy: the gap between intent and action is where mistakes happen
 2. [PROJECT_PLAN.md](../../docs/PROJECT_PLAN.md) — phase goals, risk posture, issue history
-3. [Architecture](../../src/copilot_confirm/README.md) — component map, invariants, DI contracts, AI-accessibility map
-4. Source code — the implementation
+3. [Journal entries](../../docs/journal/) — origin story, design decisions, rejection rationale
+4. [Architecture](../../src/copilot_confirm/README.md) — component map, invariants, DI contracts, AI-accessibility map
+5. Source code — the implementation
 
 **Core design values:**
 

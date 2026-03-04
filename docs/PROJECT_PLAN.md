@@ -31,13 +31,19 @@ Built the entire project in a single day: installer, tests, CI, issues (#1–#12
 
 **Risk posture:** Low — single developer, new project, no users. All code review issues resolved same day rather than left as tech debt.
 
+**Design discussions (journal):**
+
+- [2025-12-04](journal/2025-12-04.md) — Origin story: why Copilot needed a pause, two-file split (agent ≠ instruction), confidence percentages as forced ranking, installer pattern that became the template for copilot-journal. Retroactive entry — written after the principles were defined, documenting the decisions that led to them.
+
 ---
 
 ## Phase 2: Polish & Stability (2026-01-21 → 2026-01-31)
 
 **Goal:** Stabilize the project for real-world use — refine the confirmation workflow, formalize the release process, and make installation reliable.
 
-Focused on workflow clarity and release engineering. The confirmation workflow instructions were refined based on real usage to be more concise and effective.
+**Intent evolution:** The confirmation workflow instructions were cut from ~45 lines to ~15. The original had detailed examples, edge case handling, and guidance for ambiguous responses. Real usage showed that LLMs follow short structured instructions more reliably than long prose — more words about *how* to wait don't make an LLM wait better. The intent didn't change (pause before acting), but the expression of that intent was radically simplified.
+
+Focused on workflow clarity and release engineering.
 
 | Date | Work | Issues |
 | ---- | ---- | ------ |
