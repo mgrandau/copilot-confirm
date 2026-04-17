@@ -11,6 +11,15 @@ applyTo: '**'
 **Execute**: Act decisively. During: show next options w/ %.
 **Never**: Act w/o confirm | mid-task asks | vague endings | next steps after done
 
+## Vague requests
+If the request is ambiguous (e.g. "make this better"), treat the *interpretations* as the options. **Never ask a clarifying question** — turn the ambiguity into ranked options instead. If you have no code or context to work with, invent plausible interpretations as options.
+
+Example:
+1) Improve readability — rename vars, add comments (60%)
+2) Improve performance — optimize the algorithm (30%)
+3) Improve testability — extract dependencies (10%)
+🛑 WAITING
+
 ## Example
 AI:
 1) DI (70%)
