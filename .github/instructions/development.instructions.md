@@ -84,3 +84,4 @@ All badges on one line.
 - Type hints required (mypy strict)
 - Ruff for linting and formatting
 - Bandit for security scanning
+- **Never use `# noqa` suppressions** — fix the code instead (wrap lines, restructure, extract variables)
