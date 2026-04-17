@@ -145,26 +145,31 @@ def main() -> int:
     print("Testing: workflow conformance across model capability levels")
     print()
 
-    # Start with mock clients to validate harness logic
-    clients: list[ModelClientProtocol] = [
-        MockModelClient("mock/passing", MOCK_PASSING_RESPONSE),
-        MockModelClient("mock/failing", MOCK_FAILING_RESPONSE),
-        MockModelClient("mock/partial", MOCK_PARTIAL_RESPONSE),
+    # Build real clients from confirmed model IDs
+    from tests.evals.models import EVAL_MODEL_IDS, GitHubCopilotClient
+
+    real_clients: list[ModelClientProtocol] = [
+        GitHubCopilotClient(EVAL_MODEL_IDS["low_end"]),    # gpt-5-mini (free)
+        GitHubCopilotClient(EVAL_MODEL_IDS["haiku"]),      # claude-haiku-4.5 (0.33x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["flash"]),      # gemini-3-flash (0.33x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["google"]),     # gemini-2.5-pro (1x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["baseline"]),   # claude-sonnet-4.6 (1x)
     ]
 
-    results = run_all_evals(clients)
+    results = run_all_evals(real_clients)
     print_summary(results)
 
     results_path = Path(__file__).parent / "results" / "latest.json"
     save_results(results, results_path)
 
-    # Exit 1 if any passing mock failed (harness self-test)
-    mock_pass_results = [r for r in results if r.model == "mock/passing"]
-    if not all(r.passed for r in mock_pass_results):
-        print("\n❌ Harness self-test failed — mock/passing model didn't pass all assertions")
+    # Exit 1 if any baseline model failed
+    baseline_results = [r for r in results if "sonnet" in r.model]
+    if baseline_results and not all(r.passed for r in baseline_results):
+        failed = sum(1 for r in baseline_results if not r.passed)
+        print(f"\n⚠️  Baseline (claude-sonnet-4.6) failed {failed}/{len(baseline_results)} prompts")
         return 1
 
-    print("\n✅ Harness self-test passed")
+    print("\n✅ Eval run complete")
     return 0
 
 

@@ -79,7 +79,7 @@ tests/evals/
 
 ## Progress
 
-### Status: 🟡 Harness Built — Awaiting Real Model Integration
+### Status: 🟢 Complete — First Run Findings Documented
 
 - [x] Read SKILL.md, instructions, PROJECT_PLAN.md, Intent Transfer Principles
 - [x] Define eval cases and assertions
@@ -93,13 +93,49 @@ tests/evals/
 - [x] Implement `test_eval_runner.py` — harness
 - [x] Implement `test_assertions.py` — 35 tests covering all assertion logic
 - [x] Add `pdm run evals` script to pyproject.toml
-- [x] All 204 tests passing (204 = 169 original + 35 new eval tests)
-- [ ] Implement real model client (GitHubCopilotClient or OpenAI direct)
-- [ ] Run against claude-sonnet-4.6 (baseline)
-- [ ] Run against gpt-5-mini (low-end breakpoint test)
-- [ ] Run against gemini-2.5-pro
-- [ ] Run against openai-codex
-- [ ] Document findings in this file
+- [x] All 204 tests passing
+- [x] Implement real GitHubCopilotClient (uses OpenClaw token, no new deps)
+- [x] Run against claude-sonnet-4.6 (baseline) — 3/5 ⚠️
+- [x] Run against gpt-5-mini (low-end) — 5/5 ✅ (surprised!)
+- [x] Run against gemini-2.5-pro — 4/5 ⚠️
+- [x] Run against gemini-3-flash-preview — 5/5 ✅
+- [x] Run against claude-haiku-4.5 — 5/5 ✅
+- [x] Confirmed gpt-5.2-codex does NOT support chat/completions endpoint
+- [ ] Run against claude-opus-4.6 or claude-opus-4.7 (heavy end)
+- [ ] Investigate why vague_request fails on Sonnet + Gemini 2.5 Pro
+- [ ] Consider strengthening instructions for ambiguous prompts (P7: Iterate the Intent)
+
+---
+
+## First Run Findings (2026-04-17)
+
+### Results
+
+| Model | Passed | Avg Score | Cost |
+|---|---|---|---|
+| gpt-5-mini | 5/5 ✅ | 100% | 0x free |
+| claude-haiku-4.5 | 5/5 ✅ | 100% | 0.33x |
+| gemini-3-flash-preview | 5/5 ✅ | 100% | 0.33x |
+| gemini-2.5-pro | 4/5 ⚠️ | 90% | 1x |
+| claude-sonnet-4.6 | 3/5 ⚠️ | 70% | 1x |
+
+### Breakpoint
+No hard breakpoint found — all tested models at least partially follow the workflow.
+The **vague_request prompt** is where models fail. Ambiguous prompts trip up even
+mid-tier models. This is the highest-value failure mode to address — exactly the
+case where confirmation matters most.
+
+### Key observations
+- GPT-5 mini (free) and cheap models outperformed Sonnet (1x) on this workflow
+- The instructions work for structured prompts; ambiguous ones expose the gap
+- Sonnet failed `architecture_decision` by jumping to code instead of options
+- Gemini 2.5 Pro failed `vague_request` with garbled % output (summed to 200%)
+
+### Next investigation (P7: Iterate the Intent)
+The governing aim needs refinement for ambiguous prompts. Options:
+1. Strengthen the instruction for vague inputs explicitly
+2. Add a vague-prompt clause: "If intent is unclear, ask one clarifying question before presenting options"
+3. Test whether the failure is instruction-wording or model capability
 
 ---
 
