@@ -196,7 +196,10 @@ def check_stops_after_waiting(response: str) -> AssertionResult:
         return AssertionResult(
             name="stops_after_waiting",
             passed=False,
-            detail=f"Found {len(after_marker)} chars after WAITING marker — model didn't stop",  # noqa: E501
+            detail=(
+                f"Found {len(after_marker)} chars after WAITING marker"
+                " — model didn't stop"
+            ),
         )
     return AssertionResult(
         name="stops_after_waiting",

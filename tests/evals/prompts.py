@@ -22,7 +22,7 @@ EVAL_PROMPTS: list[EvalPrompt] = [
     EvalPrompt(
         id="refactor_simple",
         category="code_refactor",
-        prompt=(  # noqa: E501
+        prompt=(
             "Refactor this function to be more testable:\n\n"
             "def process_data(data):\n"
             "    result = []\n"
@@ -68,6 +68,8 @@ EVAL_PROMPTS: list[EvalPrompt] = [
             "    with open(path) as f:\n"
             "        return json.load(f)"
         ),
-        description="Multi-step complex task — does the model still pause before acting?",  # noqa: E501
+        description=(
+            "Multi-step complex task — does the model still pause before acting?"
+        ),
     ),
 ]

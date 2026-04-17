@@ -30,7 +30,8 @@ def _load_copilot_token() -> str:
     token_path = Path.home() / ".openclaw" / "credentials" / "github-copilot.token.json"
     if not token_path.exists():
         raise RuntimeError(
-            "GitHub Copilot token not found at ~/.openclaw/credentials/github-copilot.token.json"  # noqa: E501
+            "GitHub Copilot token not found at "
+            "~/.openclaw/credentials/github-copilot.token.json"
         )
     data = json.loads(token_path.read_text())
     return str(data["token"])
