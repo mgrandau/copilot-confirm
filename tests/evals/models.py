@@ -155,13 +155,14 @@ class MockModelClient:
 
 # Model matrix for eval runs — confirmed working IDs as of 2026-04-17
 EVAL_MODEL_IDS = {
-    "baseline": "claude-sonnet-4.6",       # 1x — expected to pass
-    "low_end": "gpt-5-mini",               # 0x — breakpoint candidate
-    "google_low": "gemini-3-flash-preview", # 0.33x — cheap Gemini
-    "google_mid": "gemini-2.5-pro",         # 1x — mid Gemini
-    "google_high": "gemini-3.1-pro-preview",# 1x — frontier Gemini
-    "haiku": "claude-haiku-4.5",           # 0.33x — cheap Claude
-    "heavy": "claude-opus-4.6",            # 3x — should definitely pass
+    "low_end": "gpt-5-mini",                # 0x free
+    "haiku": "claude-haiku-4.5",            # 0.33x cheap Claude
+    "baseline": "claude-sonnet-4.6",        # 1x daily driver
+    "gemini_flash": "gemini-3-flash-preview",# 0.33x cheap Gemini
+    "gemini_pro": "gemini-3.1-pro-preview", # 1x frontier Gemini
+    "gpt54": "gpt-5.4",                     # 1x off-scale GPT
+    "heavy": "claude-opus-4.6",             # 3x heavy Claude
+    "nuclear": "claude-opus-4.7",           # 7.5x nuclear
 }
 
 # Canned responses for testing assertions
