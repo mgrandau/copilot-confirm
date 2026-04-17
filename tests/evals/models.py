@@ -153,7 +153,7 @@ class MockModelClient:
         return self._response
 
 
-# Model matrix for eval runs — confirmed working IDs as of 2026-04-17
+# Model matrix for eval runs — must match OpenClaw allowed models
 EVAL_MODEL_IDS = {
     "low_end": "gpt-5-mini",                # 0x free
     "haiku": "claude-haiku-4.5",            # 0.33x cheap Claude
