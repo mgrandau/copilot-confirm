@@ -64,13 +64,18 @@ class GitHubCopilotClient:
 
     def complete(self, system: str, prompt: str) -> str:
         """Call GitHub Copilot completions API."""
+        # GPT-5.x models require max_completion_tokens instead of max_tokens
+        max_key = (
+            "max_completion_tokens" if self._model.startswith("gpt-5.")
+            else "max_tokens"
+        )
         payload = {
             "model": self._model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
             ],
-            "max_tokens": 1000,
+            max_key: 1000,
             "temperature": 0.0,
         }
         result = subprocess.run(

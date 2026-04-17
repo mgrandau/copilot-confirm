@@ -13,6 +13,7 @@ from tests.evals.assertions import (
     check_no_premature_action,
     check_options_count_valid,
     check_percentages_sum,
+    check_stops_after_waiting,
     evaluate_response,
 )
 from tests.evals.models import (
@@ -111,6 +112,33 @@ class TestOptionsCountValid:
     def test_fails_with_four_options(self) -> None:
         result = check_options_count_valid("1. A\n2. B\n3. C\n4. D\n🛑 WAITING")
         assert not result.passed
+
+
+class TestStopsAfterWaiting:
+    def test_passes_when_nothing_after_marker(self) -> None:
+        response = "1. Option A (70%)\n2. Option B (30%)\n\n🛑 WAITING"
+        result = check_stops_after_waiting(response)
+        assert result.passed
+
+    def test_passes_with_minor_trailing_whitespace(self) -> None:
+        response = "1. Option A (70%)\n2. Option B (30%)\n\n🛑 WAITING\n\n"
+        result = check_stops_after_waiting(response)
+        assert result.passed
+
+    def test_fails_when_content_after_marker(self) -> None:
+        response = "1. Option A (70%)\n2. Option B (30%)\n\n🛑 WAITING\n\nBut here's my recommendation: use option 1 because it's clearly better."
+        result = check_stops_after_waiting(response)
+        assert not result.passed
+
+    def test_fails_when_code_after_marker(self) -> None:
+        response = "1. Fix typo (90%)\n2. Investigate deeper (10%)\n\n🛑 WAITING\n\n```python\ndef fixed():\n    pass\n```"
+        result = check_stops_after_waiting(response)
+        assert not result.passed
+
+    def test_passes_when_no_marker_present(self) -> None:
+        response = "Here is some text without a marker."
+        result = check_stops_after_waiting(response)
+        assert result.passed  # other assertion handles missing marker
 
 
 class TestPercentagesSum:

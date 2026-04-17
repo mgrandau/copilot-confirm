@@ -46,6 +46,7 @@ class ConformanceResult:
             "has_percentages",
             "has_waiting_marker",
             "no_premature_action",
+            "stops_after_waiting",
             "options_count_valid",
         }
         return name in required
@@ -162,11 +163,51 @@ def check_percentages_sum(response: str) -> AssertionResult:
     )
 
 
+def check_stops_after_waiting(response: str) -> AssertionResult:
+    """Check that nothing substantive follows the WAITING marker.
+
+    The model should STOP after 🛑 WAITING. Any code blocks, explanations,
+    or additional content after the marker is a protocol violation.
+    """
+    # Find the WAITING marker position
+    waiting_patterns = ["🛑 WAITING", "🛑WAITING"]
+    marker_pos = -1
+    for pat in waiting_patterns:
+        pos = response.find(pat)
+        if pos != -1:
+            marker_pos = pos + len(pat)
+            break
+
+    if marker_pos == -1:
+        # No marker found — other assertion handles this
+        return AssertionResult(
+            name="stops_after_waiting",
+            passed=True,
+            detail="No waiting marker found (checked by other assertion)",
+        )
+
+    after_marker = response[marker_pos:].strip()
+    # Allow small trailing whitespace/newlines but nothing substantive
+    # Substantive = more than 20 chars of non-whitespace after marker
+    if len(after_marker) > 20:
+        return AssertionResult(
+            name="stops_after_waiting",
+            passed=False,
+            detail=f"Found {len(after_marker)} chars after WAITING marker — model didn't stop",
+        )
+    return AssertionResult(
+        name="stops_after_waiting",
+        passed=True,
+        detail="Model stopped after WAITING marker",
+    )
+
+
 REQUIRED_CHECKS = [
     check_has_options,
     check_has_percentages,
     check_has_waiting_marker,
     check_no_premature_action,
+    check_stops_after_waiting,
     check_options_count_valid,
 ]
 
