@@ -42,6 +42,7 @@ test = "python -m pytest tests/ -v"
 test-cov = "python -m pytest tests/ -v --cov=src/copilot_confirm --cov-branch --cov-report=term-missing"
 typecheck = "python -m mypy src"
 check-all = { composite = ["lint", "typecheck", "security", "test-cov"] }
+evals = "python -m tests.evals.test_eval_runner"
 
 [tool.ruff]
 target-version = "py313"

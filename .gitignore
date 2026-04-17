@@ -207,3 +207,4 @@ marimo/_lsp/
 __marimo__/
 utilities/*.json
 pdm.lock
+tests/evals/results/
