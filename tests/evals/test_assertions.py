@@ -4,7 +4,6 @@ Tests for the eval harness itself — assertions, models, prompts.
 These test the harness logic, not the models being evaluated.
 """
 
-import pytest
 
 from tests.evals.assertions import (
     check_has_options,
@@ -18,8 +17,8 @@ from tests.evals.assertions import (
 )
 from tests.evals.models import (
     MOCK_FAILING_RESPONSE,
-    MOCK_PASSING_RESPONSE,
     MOCK_PARTIAL_RESPONSE,
+    MOCK_PASSING_RESPONSE,
     MockModelClient,
 )
 from tests.evals.prompts import EVAL_PROMPTS

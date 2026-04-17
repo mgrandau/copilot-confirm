@@ -4,8 +4,8 @@ import pytest
 
 from tests.evals.models import (
     MOCK_FAILING_RESPONSE,
-    MOCK_PASSING_RESPONSE,
     MOCK_PARTIAL_RESPONSE,
+    MOCK_PASSING_RESPONSE,
     MockModelClient,
 )
 

@@ -108,6 +108,14 @@ class FileSystemProtocol(Protocol):
         """Copy a file from src to dst."""
         ...
 
+    def write_text(self, path: Path, content: str) -> None:
+        """Write text content to path."""
+        ...
+
+    def read_text(self, path: Path) -> str:
+        """Read text content from path."""
+        ...
+
     def get_cwd(self) -> Path:
         """Get the current working directory."""
         ...
@@ -163,6 +171,12 @@ class RealFileSystem:
 
     def copy_file(self, src: Path, dst: Path) -> None:  # pragma: no cover
         shutil.copy2(src, dst)
+
+    def write_text(self, path: Path, content: str) -> None:  # pragma: no cover
+        path.write_text(content, encoding="utf-8")
+
+    def read_text(self, path: Path) -> str:  # pragma: no cover
+        return path.read_text(encoding="utf-8")
 
     def get_cwd(self) -> Path:  # pragma: no cover
         return Path.cwd()
@@ -572,6 +586,11 @@ class AgentInstaller:
         FileMapping(src, f"prompts/{Path(src).name}") for src in SOURCE_FILES
     ]
 
+    # Instructions filename — needs CLI path substitution on install
+    INSTRUCTIONS_FILE: str = "instructions/confirmation_workflow.instructions.md"
+    # Placeholder in the instructions template that gets replaced with actual CLI path
+    CLI_PATH_PLACEHOLDER: str = "CLI_PATH"
+
     def __init__(
         self,
         agent_files_dir: Path,
@@ -579,6 +598,7 @@ class AgentInstaller:
         path_resolver: PathResolver,
         editor_detector: EditorDetector,
         logger: logging.Logger,
+        cli_path: str | None = None,
     ):
         """Initialize agent installer with all required dependencies.
 
@@ -590,13 +610,15 @@ class AgentInstaller:
             fs: File system operations provider for read/write/mkdir.
             path_resolver: Path resolution service for target directories.
             editor_detector: Editor detection service for --global auto-detect.
-            logger: Logger instance for user feedback during install.
+            cli_path: Resolved CLI path to bake into instructions.
+                Auto-detected if None.
         """
         self.agent_files_dir = agent_files_dir
         self.fs = fs
         self.path_resolver = path_resolver
         self.editor_detector = editor_detector
         self.logger = logger
+        self.cli_path = cli_path or _resolve_cli_path()
 
     def _validate_source_files(self) -> bool:
         """Validate that the agent files directory exists before installation.
@@ -731,7 +753,14 @@ class AgentInstaller:
                     failed += 1
                     continue
 
-                self.fs.copy_file(src, dst)
+                # Bake CLI path into instructions file during install
+                if file_map.src_relative == self.INSTRUCTIONS_FILE:
+                    content = self.fs.read_text(src).replace(
+                        self.CLI_PATH_PLACEHOLDER, self.cli_path
+                    )
+                    self.fs.write_text(dst, content)
+                else:
+                    self.fs.copy_file(src, dst)
                 self.logger.info(f"✅ Copied: {file_map.dst_relative}")
                 copied += 1
 
@@ -906,134 +935,36 @@ def create_installer(
 # ============================================================================
 
 
-def main() -> int:
-    """CLI entry point for copilot-confirm installation → exit code.
+def _resolve_cli_path() -> str:
+    """Resolve the absolute path to the copilot-confirm CLI executable.
 
-    Parses args, configures logging, creates installer, executes install.
-    Returns exit code for testability (caller handles sys.exit).
-
-    Business: Provides user-friendly CLI for installing Copilot agents.
-    Supports local (default) and global modes, dry-run preview, debug logging.
-
-    Args:
-        None (reads sys.argv)
+    Used by the installer to bake the correct CLI path into generated instructions.
+    Handles both local (pdm run) and global (pip install) setups.
 
     Returns:
-        int: Exit code. 0=success, 1=failure or invalid args.
-
-    Raises:
-        SystemExit: Only from argparse --help/--version.
-
-    Examples:
-        ```python
-        # Direct testing
-        code = main()
-        assert code == 0
-        ```
-
-        ```bash
-        copilot-confirm --global --insiders --dry-run
-        copilot-confirm --local --log-level DEBUG
-        ```
-
-    Technical: Uses argparse. Mutually exclusive --global/--local enforced.
+        str: Absolute path to the CLI, or "copilot-confirm" as fallback.
     """
-    from .__version__ import __version__
+    import shutil
 
-    parser = argparse.ArgumentParser(
-        description="Install Copilot Confirm agent files",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Install locally to current repository (default)
-  copilot-confirm
+    cli = shutil.which("copilot-confirm")
+    if cli:
+        return cli
+    return "copilot-confirm"
 
-  # Install globally to VS Code
-  copilot-confirm --global
 
-  # Install globally to VS Code Insiders
-  copilot-confirm --global --insiders
-
-  # Dry run to see what would be installed
-  copilot-confirm --global --dry-run
-
-  # Enable debug logging
-  copilot-confirm --log-level DEBUG
-
-  # Save logs to file
-  copilot-confirm --global --log-file install.log
-        """,
-    )
-
-    parser.add_argument(
-        "--version",
-        "-V",
-        action="version",
-        version=f"%(prog)s {__version__}",
-        help="Show program version and exit",
-    )
-
-    parser.add_argument(
-        "--global",
-        "-g",
-        dest="install_global",
-        action="store_true",
-        help="Install globally to VS Code configuration directory (default: local)",
-    )
-
-    parser.add_argument(
-        "--local",
-        "-l",
-        dest="install_local",
-        action="store_true",
-        help="Install locally to .github directory (default)",
-    )
-
-    parser.add_argument(
-        "--insiders",
-        "-i",
-        action="store_true",
-        help="Install for VS Code Insiders instead of stable VS Code",
-    )
-
-    parser.add_argument(
-        "--dry-run",
-        "-n",
-        action="store_true",
-        help="Show what would be installed without actually copying files",
-    )
-
-    parser.add_argument(
-        "--log-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
-        help="Set the logging level (default: INFO)",
-    )
-
-    parser.add_argument(
-        "--log-file",
-        type=Path,
-        help="Write logs to specified file in addition to console",
-    )
-
-    args = parser.parse_args()
-
+def _cmd_install(args: argparse.Namespace) -> int:
+    """Handle the install subcommand (default behavior)."""
     # Can't specify both
     if args.install_global and args.install_local:
         print("❌ Error: Cannot specify both --global and --local")
         return 1
 
-    # Configure logging
     logger = setup_logging(level=args.log_level, log_file=args.log_file)
-
-    # Create installer with production dependencies
     installer = create_installer(logger=logger)
 
-    # Show system info
     logger.info(f"🖥️  System: {platform.system()}")
     logger.info("")
 
-    # Perform installation
     if args.install_global:
         editor = (
             EditorDetector.SUPPORTED_EDITORS[0]  # Code-Insiders
@@ -1045,6 +976,217 @@ Examples:
         result = installer.install_local(args.dry_run)
 
     return 0 if result.success else 1
+
+
+def _cmd_log(args: argparse.Namespace) -> int:
+    """Handle `copilot-confirm log` — append one telemetry line."""
+    from .telemetry import TelemetryEntry, create_telemetry_logger
+
+    try:
+        spread = [int(p.strip()) for p in args.spread.split(",") if p.strip()]
+    except ValueError:
+        print(
+            f"❌ Error: --spread must be comma-separated integers, got: {args.spread}"
+        )
+        return 1
+
+    entry = TelemetryEntry(
+        model=args.model,
+        selected=args.selected,
+        spread=spread,
+        correction=args.correction.lower() == "yes",
+        waited=args.waited.lower() == "yes",
+        options=args.options.lower() == "yes",
+        pct=args.pct.lower() == "yes",
+    )
+
+    logger_telem = create_telemetry_logger()
+    line = logger_telem.log(entry)
+
+    if line is None:
+        # Mode is off — silently succeed so instructions don't fail
+        return 0
+
+    print(line)
+    return 0
+
+
+def _cmd_telemetry_show(_args: argparse.Namespace) -> int:
+    """Handle `copilot-confirm telemetry show`."""
+    from .telemetry import create_telemetry_logger
+
+    telem = create_telemetry_logger()
+    content = telem.show()
+    if not content.strip():
+        print("(no telemetry data)")
+    else:
+        print(content, end="")
+    return 0
+
+
+def _cmd_telemetry_send(_args: argparse.Namespace) -> int:
+    """Handle `copilot-confirm telemetry send`."""
+    from .telemetry import create_telemetry_logger
+
+    telem = create_telemetry_logger()
+    success, message = telem.send()
+    print(message)
+    return 0 if success else 1
+
+
+def main() -> int:
+    """CLI entry point for copilot-confirm → exit code.
+
+    Supports subcommands:
+      (no subcommand)          install agent files (default)
+      log                      log one telemetry entry
+      telemetry show           display the telemetry log
+      telemetry send           POST telemetry to configured endpoint
+
+    Returns:
+        int: Exit code. 0=success, 1=failure.
+    """
+    from .__version__ import __version__
+
+    parser = argparse.ArgumentParser(
+        description="Copilot Confirm — confirmation workflow for AI agents",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Install locally to current repository (default)
+  copilot-confirm
+
+  # Install globally to VS Code
+  copilot-confirm --global
+
+  # Log a telemetry entry
+  copilot-confirm log --model claude-sonnet-4.6 --selected 70 --spread 70,25,5 \\
+    --correction no --waited yes --options yes --pct yes
+
+  # Show telemetry log
+  copilot-confirm telemetry show
+
+  # Send telemetry to configured endpoint
+  copilot-confirm telemetry send
+        """,
+    )
+
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show program version and exit",
+    )
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    # ── install (default, backward-compat args on root parser) ──────────────
+    parser.add_argument(
+        "--global",
+        "-g",
+        dest="install_global",
+        action="store_true",
+        help="Install globally to VS Code configuration directory (default: local)",
+    )
+    parser.add_argument(
+        "--local",
+        "-l",
+        dest="install_local",
+        action="store_true",
+        help="Install locally to .github directory (default)",
+    )
+    parser.add_argument(
+        "--insiders",
+        "-i",
+        action="store_true",
+        help="Install for VS Code Insiders instead of stable VS Code",
+    )
+    parser.add_argument(
+        "--dry-run",
+        "-n",
+        action="store_true",
+        help="Show what would be installed without actually copying files",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logging level (default: INFO)",
+    )
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        help="Write logs to specified file in addition to console",
+    )
+
+    # ── log ──────────────────────────────────────────────────────────────────
+    log_parser = subparsers.add_parser(
+        "log",
+        help="Append one telemetry line (called by AI after each confirmation)",
+    )
+    log_parser.add_argument("--model", required=True, help="Model identifier")
+    log_parser.add_argument(
+        "--selected",
+        required=True,
+        type=int,
+        help="Confidence %% of selected option (0=rejected)",
+    )
+    log_parser.add_argument(
+        "--spread",
+        required=True,
+        help="Comma-separated confidence %% list (e.g. 70,25,5)",
+    )
+    log_parser.add_argument(
+        "--correction",
+        required=True,
+        choices=["yes", "no"],
+        help="Did user modify/redirect after selection?",
+    )
+    log_parser.add_argument(
+        "--waited",
+        required=True,
+        choices=["yes", "no"],
+        help="Did model stop after 🛑 WAITING?",
+    )
+    log_parser.add_argument(
+        "--options",
+        required=True,
+        choices=["yes", "no"],
+        help="Were numbered options presented?",
+    )
+    log_parser.add_argument(
+        "--pct",
+        required=True,
+        choices=["yes", "no"],
+        help="Were percentages included?",
+    )
+
+    # ── telemetry ─────────────────────────────────────────────────────────────
+    telem_parser = subparsers.add_parser(
+        "telemetry",
+        help="Manage telemetry log",
+    )
+    telem_sub = telem_parser.add_subparsers(dest="telemetry_command")
+    telem_sub.add_parser("show", help="Display the telemetry log")
+    telem_sub.add_parser("send", help="POST telemetry to configured endpoint")
+
+    args = parser.parse_args()
+
+    # Route subcommands
+    if args.command == "log":
+        return _cmd_log(args)
+
+    if args.command == "telemetry":
+        if args.telemetry_command == "show":
+            return _cmd_telemetry_show(args)
+        if args.telemetry_command == "send":
+            return _cmd_telemetry_send(args)
+        telem_parser.print_help()
+        return 1
+
+    # Default: install
+    return _cmd_install(args)
 
 
 if __name__ == "__main__":

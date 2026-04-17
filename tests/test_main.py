@@ -75,6 +75,12 @@ class MockFileSystem:
             raise OSError("Mock copy error")
         self.copied_files.append((src, dst))
 
+    def write_text(self, path: Path, content: str) -> None:  # noqa: ARG002
+        pass  # no-op in most tests; override if needed
+
+    def read_text(self, path: Path) -> str:  # noqa: ARG002
+        return ""  # return empty string by default
+
     def get_cwd(self) -> Path:
         return self._cwd
 
@@ -658,7 +664,8 @@ class TestAgentInstaller:
         result = installer.install_local(dry_run=False)
         assert result.success is True
         assert result.files_copied == 2
-        assert len(fs.copied_files) == 2
+        # Agent file is copied; instructions file is written via write_text
+        assert len(fs.copied_files) == 1
 
     def test_install_source_file_not_found(self) -> None:
         """Validates failure when source agent files don't exist.

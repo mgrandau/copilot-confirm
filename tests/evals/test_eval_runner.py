@@ -14,10 +14,6 @@ from pathlib import Path
 
 from tests.evals.assertions import ConformanceResult, evaluate_response
 from tests.evals.models import (
-    MOCK_FAILING_RESPONSE,
-    MOCK_PASSING_RESPONSE,
-    MOCK_PARTIAL_RESPONSE,
-    MockModelClient,
     ModelClientProtocol,
 )
 from tests.evals.prompts import EVAL_PROMPTS, EvalPrompt
@@ -62,7 +58,7 @@ def run_all_evals(
     results = []
 
     for client in clients:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Model: {client.model_id}")
         print("=" * 60)
 
@@ -116,7 +112,7 @@ def save_results(results: list[ConformanceResult], output_path: Path) -> None:
 
 def print_summary(results: list[ConformanceResult]) -> None:
     """Print a cross-model summary table."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SUMMARY")
     print("=" * 60)
 
@@ -130,7 +126,9 @@ def print_summary(results: list[ConformanceResult]) -> None:
         total = len(model_results)
         avg_score = sum(r.score for r in model_results) / total if total else 0
         status = "✅" if passed == total else ("⚠️" if passed > 0 else "❌")
-        print(f"  {status} {model}: {passed}/{total} passed (avg score {avg_score:.0%})")
+        print(
+            f"  {status} {model}: {passed}/{total} passed (avg score {avg_score:.0%})"
+        )
 
 
 def main() -> int:
@@ -149,14 +147,18 @@ def main() -> int:
     from tests.evals.models import EVAL_MODEL_IDS, GitHubCopilotClient
 
     real_clients: list[ModelClientProtocol] = [
-        GitHubCopilotClient(EVAL_MODEL_IDS["nuclear"]),     # claude-opus-4.7 (7.5x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["heavy"]),       # claude-opus-4.6 (3x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["gpt54"]),       # gpt-5.4 (1x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["gemini_pro"]),  # gemini-3.1-pro-preview (1x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["baseline"]),    # claude-sonnet-4.6 (1x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["gemini_flash"]),# gemini-3-flash-preview (0.33x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["haiku"]),       # claude-haiku-4.5 (0.33x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["low_end"]),     # gpt-5-mini (0x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["nuclear"]),  # claude-opus-4.7 (7.5x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["heavy"]),  # claude-opus-4.6 (3x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["gpt54"]),  # gpt-5.4 (1x)
+        GitHubCopilotClient(
+            EVAL_MODEL_IDS["gemini_pro"]
+        ),  # gemini-3.1-pro-preview (1x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["baseline"]),  # claude-sonnet-4.6 (1x)
+        GitHubCopilotClient(
+            EVAL_MODEL_IDS["gemini_flash"]
+        ),  # gemini-3-flash-preview (0.33x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["haiku"]),  # claude-haiku-4.5 (0.33x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["low_end"]),  # gpt-5-mini (0x)
     ]
 
     results = run_all_evals(real_clients)
@@ -169,7 +171,9 @@ def main() -> int:
     baseline_results = [r for r in results if "sonnet" in r.model]
     if baseline_results and not all(r.passed for r in baseline_results):
         failed = sum(1 for r in baseline_results if not r.passed)
-        print(f"\n⚠️  Baseline (claude-sonnet-4.6) failed {failed}/{len(baseline_results)} prompts")
+        print(
+            f"\n⚠️  Baseline (claude-sonnet-4.6) failed {failed}/{len(baseline_results)} prompts"
+        )
         return 1
 
     print("\n✅ Eval run complete")

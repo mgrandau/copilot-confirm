@@ -66,7 +66,8 @@ class GitHubCopilotClient:
         """Call GitHub Copilot completions API."""
         # GPT-5.x models require max_completion_tokens instead of max_tokens
         max_key = (
-            "max_completion_tokens" if self._model.startswith("gpt-5.")
+            "max_completion_tokens"
+            if self._model.startswith("gpt-5.")
             else "max_tokens"
         )
         payload = {
@@ -80,13 +81,23 @@ class GitHubCopilotClient:
         }
         result = subprocess.run(
             [
-                "curl", "-s", "-X", "POST", self.API_URL,
-                "-H", f"Authorization: Bearer {self._token}",
-                "-H", "Content-Type: application/json",
-                "-H", f"Editor-Version: {self.EDITOR_VERSION}",
-                "-H", f"Editor-Plugin-Version: {self.PLUGIN_VERSION}",
-                "-H", "Copilot-Integration-Id: vscode-chat",
-                "-d", json.dumps(payload),
+                "curl",
+                "-s",
+                "-X",
+                "POST",
+                self.API_URL,
+                "-H",
+                f"Authorization: Bearer {self._token}",
+                "-H",
+                "Content-Type: application/json",
+                "-H",
+                f"Editor-Version: {self.EDITOR_VERSION}",
+                "-H",
+                f"Editor-Plugin-Version: {self.PLUGIN_VERSION}",
+                "-H",
+                "Copilot-Integration-Id: vscode-chat",
+                "-d",
+                json.dumps(payload),
             ],
             capture_output=True,
             text=True,
@@ -123,11 +134,17 @@ class OpenAIClient:
         }
         result = subprocess.run(
             [
-                "curl", "-s", "-X", "POST",
+                "curl",
+                "-s",
+                "-X",
+                "POST",
                 "https://api.openai.com/v1/chat/completions",
-                "-H", f"Authorization: Bearer {self._api_key}",
-                "-H", "Content-Type: application/json",
-                "-d", json.dumps(payload),
+                "-H",
+                f"Authorization: Bearer {self._api_key}",
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps(payload),
             ],
             capture_output=True,
             text=True,
@@ -160,14 +177,14 @@ class MockModelClient:
 
 # Model matrix for eval runs — must match OpenClaw allowed models
 EVAL_MODEL_IDS = {
-    "low_end": "gpt-5-mini",                # 0x free
-    "haiku": "claude-haiku-4.5",            # 0.33x cheap Claude
-    "baseline": "claude-sonnet-4.6",        # 1x daily driver
-    "gemini_flash": "gemini-3-flash-preview",# 0.33x cheap Gemini
-    "gemini_pro": "gemini-3.1-pro-preview", # 1x frontier Gemini
-    "gpt54": "gpt-5.4",                     # 1x off-scale GPT
-    "heavy": "claude-opus-4.6",             # 3x heavy Claude
-    "nuclear": "claude-opus-4.7",           # 7.5x nuclear
+    "low_end": "gpt-5-mini",  # 0x free
+    "haiku": "claude-haiku-4.5",  # 0.33x cheap Claude
+    "baseline": "claude-sonnet-4.6",  # 1x daily driver
+    "gemini_flash": "gemini-3-flash-preview",  # 0.33x cheap Gemini
+    "gemini_pro": "gemini-3.1-pro-preview",  # 1x frontier Gemini
+    "gpt54": "gpt-5.4",  # 1x off-scale GPT
+    "heavy": "claude-opus-4.6",  # 3x heavy Claude
+    "nuclear": "claude-opus-4.7",  # 7.5x nuclear
 }
 
 # Canned responses for testing assertions
@@ -198,4 +215,3 @@ def process_data(data):
     return [item * 2 for item in data if item > 0]
 ```
 """
-

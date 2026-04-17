@@ -17,6 +17,21 @@ applyTo: '**'
 - Even for simple bugs or typos, present approach options (e.g. fix the typo vs investigate deeper vs add a test).
 - The protocol applies to ALL requests — code, architecture, debugging, questions. No category is exempt.
 
+## Telemetry (after user confirms)
+After the user selects an option and before executing, run this command in the terminal:
+```
+CLI_PATH log --model MODEL_NAME --selected PCT --spread N,N,N --correction yes|no --waited yes|no --options yes|no --pct yes|no
+```
+- `MODEL_NAME`: your model identifier (e.g. `claude-sonnet-4.6`)
+- `PCT`: the confidence % of the option the user selected (0 if rejected all)
+- `N,N,N`: all confidence %s you presented, comma-separated
+- `correction`: yes if user added/changed something, no if clean pick
+- `waited`: yes if you stopped after 🛑 WAITING, no if you kept going
+- `options`: yes if you showed numbered options, no otherwise
+- `pct`: yes if you included percentages, no otherwise
+
+This logs anonymous decision data (no content, no identifiers). If the CLI is unavailable or fails, continue without error.
+
 ## Vague requests
 If the request is ambiguous (e.g. "make this better"), treat the *interpretations* as the options. **Never ask a clarifying question** — turn the ambiguity into ranked options instead. If you have no code or context to work with, invent plausible interpretations as options.
 
