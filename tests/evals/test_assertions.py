@@ -4,7 +4,6 @@ Tests for the eval harness itself — assertions, models, prompts.
 These test the harness logic, not the models being evaluated.
 """
 
-
 from tests.evals.assertions import (
     check_has_options,
     check_has_percentages,
@@ -80,7 +79,10 @@ class TestHasWaitingMarker:
 
 class TestNoPrematureAction:
     def test_passes_when_options_before_code(self) -> None:
-        response = "1. Option A (70%)\n2. Option B (30%)\n🛑 WAITING\n\n```python\n# only after confirm\n```"
+        response = (
+            "1. Option A (70%)\n2. Option B (30%)\n🛑 WAITING\n\n"
+            "```python\n# only after confirm\n```"
+        )
         result = check_no_premature_action(response)
         assert result.passed
 
@@ -125,12 +127,18 @@ class TestStopsAfterWaiting:
         assert result.passed
 
     def test_fails_when_content_after_marker(self) -> None:
-        response = "1. Option A (70%)\n2. Option B (30%)\n\n🛑 WAITING\n\nBut here's my recommendation: use option 1 because it's clearly better."
+        response = (
+            "1. Option A (70%)\n2. Option B (30%)\n\n🛑 WAITING\n\n"
+            "But here's my recommendation: use option 1 because it's clearly better."
+        )
         result = check_stops_after_waiting(response)
         assert not result.passed
 
     def test_fails_when_code_after_marker(self) -> None:
-        response = "1. Fix typo (90%)\n2. Investigate deeper (10%)\n\n🛑 WAITING\n\n```python\ndef fixed():\n    pass\n```"
+        response = (
+            "1. Fix typo (90%)\n2. Investigate deeper (10%)\n\n🛑 WAITING\n\n"
+            "```python\ndef fixed():\n    pass\n```"
+        )
         result = check_stops_after_waiting(response)
         assert not result.passed
 

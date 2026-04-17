@@ -172,7 +172,8 @@ def main() -> int:
     if baseline_results and not all(r.passed for r in baseline_results):
         failed = sum(1 for r in baseline_results if not r.passed)
         print(
-            f"\n⚠️  Baseline (claude-sonnet-4.6) failed {failed}/{len(baseline_results)} prompts"
+            f"\n⚠️  Baseline (claude-sonnet-4.6) failed "
+            f"{failed}/{len(baseline_results)} prompts"
         )
         return 1
 

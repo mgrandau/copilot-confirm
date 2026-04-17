@@ -122,7 +122,10 @@ def check_no_premature_action(response: str) -> AssertionResult:
         detail = "Options presented before any code block"
     else:
         passed = False
-        detail = f"Code block at line {first_code_line} before options at {first_option_line}"
+        detail = (
+            f"Code block at line {first_code_line} "
+            f"before options at {first_option_line}"
+        )
 
     return AssertionResult(
         name="no_premature_action",
@@ -193,7 +196,7 @@ def check_stops_after_waiting(response: str) -> AssertionResult:
         return AssertionResult(
             name="stops_after_waiting",
             passed=False,
-            detail=f"Found {len(after_marker)} chars after WAITING marker — model didn't stop",
+            detail=f"Found {len(after_marker)} chars after WAITING marker — model didn't stop",  # noqa: E501
         )
     return AssertionResult(
         name="stops_after_waiting",
