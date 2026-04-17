@@ -157,10 +157,10 @@ class MockModelClient:
 EVAL_MODEL_IDS = {
     "baseline": "claude-sonnet-4.6",       # 1x — expected to pass
     "low_end": "gpt-5-mini",               # 0x — breakpoint candidate
-    "google": "gemini-2.5-pro",            # 1x — unknown
-    "flash": "gemini-3-flash-preview",     # 0.33x — cheap, unknown
+    "google_low": "gemini-3-flash-preview", # 0.33x — cheap Gemini
+    "google_mid": "gemini-2.5-pro",         # 1x — mid Gemini
+    "google_high": "gemini-3.1-pro-preview",# 1x — frontier Gemini
     "haiku": "claude-haiku-4.5",           # 0.33x — cheap Claude
-    "codex": "gpt-5.2-codex",             # 1x — code-focused
     "heavy": "claude-opus-4.6",            # 3x — should definitely pass
 }
 

@@ -149,11 +149,12 @@ def main() -> int:
     from tests.evals.models import EVAL_MODEL_IDS, GitHubCopilotClient
 
     real_clients: list[ModelClientProtocol] = [
-        GitHubCopilotClient(EVAL_MODEL_IDS["low_end"]),    # gpt-5-mini (free)
-        GitHubCopilotClient(EVAL_MODEL_IDS["haiku"]),      # claude-haiku-4.5 (0.33x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["flash"]),      # gemini-3-flash (0.33x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["google"]),     # gemini-2.5-pro (1x)
-        GitHubCopilotClient(EVAL_MODEL_IDS["baseline"]),   # claude-sonnet-4.6 (1x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["low_end"]),     # gpt-5-mini (free)
+        GitHubCopilotClient(EVAL_MODEL_IDS["haiku"]),       # claude-haiku-4.5 (0.33x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["google_low"]),  # gemini-3-flash-preview (0.33x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["google_mid"]),  # gemini-2.5-pro (1x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["google_high"]), # gemini-3.1-pro-preview (1x)
+        GitHubCopilotClient(EVAL_MODEL_IDS["baseline"]),    # claude-sonnet-4.6 (1x)
     ]
 
     results = run_all_evals(real_clients)
