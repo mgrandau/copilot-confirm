@@ -965,15 +965,16 @@ def _cmd_install(args: argparse.Namespace) -> int:
     logger.info(f"🖥️  System: {platform.system()}")
     logger.info("")
 
-    if args.install_global:
+    if args.install_local:
+        result = installer.install_local(args.dry_run)
+    else:
+        # Global is the default
         editor = (
             EditorDetector.SUPPORTED_EDITORS[0]  # Code-Insiders
             if args.insiders
             else EditorDetector.DEFAULT_EDITOR  # Code
         )
         result = installer.install_global(editor, args.dry_run)
-    else:
-        result = installer.install_local(args.dry_run)
 
     return 0 if result.success else 1
 
@@ -1087,14 +1088,17 @@ Examples:
         "-g",
         dest="install_global",
         action="store_true",
-        help="Install globally to VS Code configuration directory (default: local)",
+        help=(
+            "Install globally to VS Code configuration directory"
+            " (default)"
+        ),
     )
     parser.add_argument(
         "--local",
         "-l",
         dest="install_local",
         action="store_true",
-        help="Install locally to .github directory (default)",
+        help="Install locally to .github directory",
     )
     parser.add_argument(
         "--insiders",

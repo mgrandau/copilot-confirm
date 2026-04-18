@@ -208,3 +208,8 @@ __marimo__/
 utilities/*.json
 pdm.lock
 tests/evals/results/
+
+# PyInstaller
+build/
+dist/
+*.spec
