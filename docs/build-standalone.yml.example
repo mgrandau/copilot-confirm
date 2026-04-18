@@ -1,0 +1,47 @@
+name: Build Standalone Executables
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: copilot-confirm-linux-x64
+          - os: macos-latest
+            artifact: copilot-confirm-macos-arm64
+          - os: windows-latest
+            artifact: copilot-confirm-windows-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build standalone executable
+        run: |
+          pyinstaller --onefile \
+            --name ${{ matrix.artifact }} \
+            --add-data "src/copilot_confirm/agent_files:copilot_confirm/agent_files" \
+            --paths src \
+            standalone.py
+        shell: bash
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.artifact }}*
