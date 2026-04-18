@@ -213,3 +213,4 @@ tests/evals/results/
 build/
 dist/
 *.spec
+.github/workflows/build-standalone.yml

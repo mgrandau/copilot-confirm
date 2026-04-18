@@ -708,6 +708,61 @@ class AgentInstaller:
             dst = target_dir / file_map.dst_relative
             self.logger.info(f"  {src} -> {dst}")
 
+    def _create_default_config(self) -> None:
+        """Create default telemetry config if it doesn't exist.
+
+        Writes ~/.copilot-confirm/config.toml with telemetry off
+        and commented examples for local and remote modes.
+        """
+        config_dir = Path(
+            self.path_resolver.env.get_home()
+        ) / ".copilot-confirm"
+        config_path = config_dir / "config.toml"
+
+        if self.fs.exists(config_path):
+            self.logger.info("  Config already exists, skipping")
+            return
+
+        config_content = (
+            "# copilot-confirm configuration\n"
+            "#\n"
+            "# Telemetry captures decision signals from the\n"
+            "# confirmation workflow — which option was picked,\n"
+            "# the confidence spread, and whether the model\n"
+            "# followed the protocol correctly.\n"
+            "#\n"
+            "# No prompt content or option text is ever recorded.\n"
+            "# Only structural/numeric signals.\n"
+            "#\n"
+            "# See: https://github.com/mgrandau/copilot-confirm\n"
+            "\n"
+            "[telemetry]\n"
+            '# mode = "off"    # default — nothing collected\n'
+            "\n"
+            "# ── Local mode ──────────────────────────────────\n"
+            "# Appends pipe-delimited plaintext to a local file.\n"
+            "# You can inspect it anytime with:\n"
+            "#   copilot-confirm telemetry show\n"
+            "#\n"
+            '# mode = "local"\n'
+            '# path = "~/.copilot-confirm/telemetry.log"\n'
+            "\n"
+            "# ── Remote mode ─────────────────────────────────\n"
+            "# Writes locally AND sends each entry to a URL.\n"
+            "# You see exactly what's sent — same plaintext.\n"
+            "#\n"
+            '# mode = "remote"\n'
+            '# path = "~/.copilot-confirm/telemetry.log"\n'
+            '# endpoint = "https://your-endpoint.example.com"\n'
+        )
+
+        self.fs.mkdir(config_dir, parents=True, exist_ok=True)
+        self.fs.write_text(config_path, config_content)
+        self.logger.info(
+            "  ✅ Created default config: "
+            f"{config_path}"
+        )
+
     def _perform_installation(
         self, target_dir: Path, files: list[FileMapping]
     ) -> InstallationResult:
@@ -765,6 +820,7 @@ class AgentInstaller:
                 copied += 1
 
             if copied > 0:
+                self._create_default_config()
                 self.logger.info(
                     f"\n🎉 Successfully installed {copied} file(s) to {target_dir}"
                 )
