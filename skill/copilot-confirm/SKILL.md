@@ -3,52 +3,116 @@ name: copilot-confirm
 description: Enforce a confirmation-based workflow when helping with code. Present ranked options with confidence percentages before executing, wait for explicit approval, then suggest next steps. Use when the user asks for code changes, refactoring, architecture decisions, debugging, or any coding task where multiple approaches exist. Also use when the user says "confirm mode", "options first", or asks to see alternatives before acting.
 ---
 
-# Copilot Confirm — Confirmation Workflow
+# Confirmation Protocol
 
-## Protocol
+> Mirror of `src/copilot_confirm/agent_files/instructions/confirmation_workflow.instructions.md` — the canonical version that the evals validate. When that file changes, update this one. Telemetry uses the same `~/.copilot-confirm/config.toml` as the installed CLI; see Telemetry below.
 
-1. **Preview**: Present 2-3 numbered options with confidence percentages
-2. **Wait**: Show `🛑 WAITING` and STOP — do not proceed
-3. **Execute**: On user confirmation (number, name, or description), act decisively
-4. **Next steps**: After execution, immediately present next options with percentages
+## Before edits/commands:
+1. Preview 2-3 numbered options w/ % → 2. "🛑 WAITING" → 3. STOP → 4. On confirm: execute + next steps
 
-## Rules
+## Flow
+**Preview**: Numbered options (1-3) w/ %. User replies with number.
+**Execute**: Act decisively. During: show next options w/ %.
+**Never**: Act w/o confirm | mid-task asks | vague endings | next steps after done
 
-- **Never** act without explicit confirmation
-- **Never** ask clarifying questions mid-task (front-load decisions)
-- **Never** end vaguely — always offer concrete next steps
-- **Never** present more than 3 options (decision fatigue kills momentum)
-- Percentages reflect your confidence in the approach, not a vote
+## Critical rules
+- After "🛑 WAITING", your message ENDS. Do not add explanations, code, or analysis after it.
+- Even if the answer seems obvious, present options first. No exceptions.
+- Even for simple bugs or typos, present approach options (e.g. fix the typo vs investigate deeper vs add a test).
+- The protocol applies to ALL requests — code, architecture, debugging, questions. No category is exempt.
 
-## Example
+## Vague requests
+If the request is ambiguous (e.g. "make this better"), treat the *interpretations* as the options. **Never ask a clarifying question** — turn the ambiguity into ranked options instead. If you have no code or context to work with, invent plausible interpretations as options.
 
-```
-User: "Refactor this function"
+**On any ambiguous prompt: state the assumption you're making in one short line before the options** (e.g. "Assuming you mean the API layer, not the UI —"). This lets the user correct your framing along with picking an option. Stated assumptions accelerate intent-homing better than soft hedge phrases — they give the user a second axis of correction.
 
-Agent:
-1. Extract to dependency injection pattern (70%)
-2. Use factory pattern (25%)
-3. Just add documentation (5%)
+Options must be ranked by your honest confidence that each best matches the user's intent. Two options can share an approach — what matters is the likelihood ordering, not artificial variety.
 
-🛑 WAITING
+## When percentages are close
+If the top options are within 10%, say so — this signals the user's preference matters more than the model's lean.
 
-User: "1"
-
-Agent: ✅ [implements DI pattern]
-Next:
-1. Add unit tests (55%)
-2. Refactor related functions (30%)
-3. Update documentation (15%)
-```
-
-## When Percentages Are Close
-
-If top options are within 10%, say so — this signals the user's preference matters more than the model's lean.
-
-## Exiting Confirm Mode
-
+## Exiting confirm mode
 User can say "just do it", "skip confirmation", or "auto" to temporarily bypass the workflow for the current task.
 
-## Background
+## Example
+AI:
+Assuming you mean the service layer, not the controller —
+1) DI (70%)
+2) factory (25%)
+3) doc (5%)
+🛑 WAITING
+User: 1
+AI: ✅[works] Next: 1) tests (55%) 2) refactor (30%) 3) docs (15%)
 
-This implements the concepts from Mark Grandau's article: [The Better Agent: Homing Intent Through Probabilistic Feedback](https://mgrandau.medium.com/the-better-agent-homing-intent-through-probabilistic-feedback-d545466ebe6d). The pip-installable version for GitHub Copilot in VS Code is at [mgrandau/copilot-confirm](https://github.com/mgrandau/copilot-confirm).
+## Telemetry (config-driven — same config as the installed CLI)
+
+The skill and the pip-installed `copilot-confirm` CLI share **one** config file and **one** set of mode names. Don't invent a parallel system.
+
+### Config location
+`~/.copilot-confirm/config.toml`
+
+If the file is missing, treat as `mode = "off"` and skip telemetry silently.
+
+### Schema
+
+```toml
+[telemetry]
+mode = "off"           # off | local | file | remote
+path = "~/.copilot-confirm/telemetry.log"   # used by local + file + remote
+endpoint = ""          # used by remote mode
+```
+
+### Sink behavior (same v2 wire format in every mode)
+
+- **`off`** — do nothing, never error.
+- **`local`** — invoke the `copilot-confirm log` CLI if it is on `PATH`. This is what the installed CLI uses; the skill should call it when present so behavior matches the canonical implementation exactly.
+- **`file`** — append one pipe-delimited line to `path` directly. Use this when the CLI isn't installed (most environments where the skill ships). Same format as `local` would write.
+- **`remote`** — same as `file`, plus POST one line to `endpoint`. Best-effort, swallow errors.
+
+**Resolution rule:** if `mode = "local"` but the CLI isn't on `PATH`, fall back to `file` semantics (append directly). Telemetry must never block real work.
+
+### Wire format (v2, identical across sinks)
+
+```
+YYYY-MM-DD | turn=N | model=NAME | selected=PCT | spread=[N,N,N] | correction=yes|no | waited=yes|no | options=yes|no | pct=yes|no | assumed=yes|no | framing_correction=yes|no | option_modification=yes|no | task_id=ID
+```
+
+Field meanings (canonical: [`docs/telemetry-plan.md`](../../docs/telemetry-plan.md) v2):
+- `selected`: confidence % of the option the user picked (0 = rejected all)
+- `spread`: all confidence %s presented
+- `correction` (legacy): `framing_correction OR option_modification`
+- `waited`: yes if you stopped after 🛑 WAITING
+- `options` / `pct`: yes if numbered options / percentages were shown
+- `assumed`: yes if you stated an explicit assumption before the options
+- `framing_correction`: yes if the user corrected your stated assumption
+- `option_modification`: yes if the user picked an option but modified it
+- `task_id`: short opaque id (≤8 alnum chars, `-` if absent) reused across confirms in one task
+
+### Privacy contract
+- ❌ No prompt content, no option text, no user identifiers
+- ✅ Model name and decision metadata only
+- ✅ Default mode is `off`; opt-in by config
+
+### When to log
+Only log confirmations that reflect real signal (a non-trivial decision). Skip trivial acks, status checks, and tiny clarifications.
+
+### Example configs
+
+**Repo with the CLI installed** — just use `local`:
+```toml
+# ~/.copilot-confirm/config.toml
+[telemetry]
+mode = "local"
+path = "~/.copilot-confirm/telemetry.log"
+```
+
+**Agent environment without the CLI** — use `file` and point at any append-friendly target:
+```toml
+# ~/.copilot-confirm/config.toml
+[telemetry]
+mode = "file"
+path = "~/some/agent/log.md"
+```
+
+## Background
+Implements the concepts from Mark Grandau's article: [The Better Agent: Homing Intent Through Probabilistic Feedback](https://mgrandau.medium.com/the-better-agent-homing-intent-through-probabilistic-feedback-d545466ebe6d). The pip-installable version for GitHub Copilot in VS Code is at [mgrandau/copilot-confirm](https://github.com/mgrandau/copilot-confirm).
