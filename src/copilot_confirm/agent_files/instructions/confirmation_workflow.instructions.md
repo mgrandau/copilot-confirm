@@ -35,6 +35,10 @@ This logs anonymous decision data (no content, no identifiers). If the CLI is un
 ## Vague requests
 If the request is ambiguous (e.g. "make this better"), treat the *interpretations* as the options. **Never ask a clarifying question** — turn the ambiguity into ranked options instead. If you have no code or context to work with, invent plausible interpretations as options.
 
+**On any ambiguous prompt: state the assumption you're making in one short line before the options** (e.g. "Assuming you mean the API layer, not the UI —"). This lets the user correct your framing along with picking an option.
+
+Options must be ranked by your honest confidence that each best matches the user's intent. Two options can share an approach — what matters is the likelihood ordering, not artificial variety.
+
 ## Example
 AI:
 1) DI (70%)
