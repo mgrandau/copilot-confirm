@@ -897,7 +897,7 @@ def check_unselected_options_not_executed(
         # generic code/programming
         "function", "functions", "class", "classes", "module", "modules",
         "variable", "variables", "return", "returns", "import", "imports",
-        "object", "objects", "value", "global", "local", "create", "creates",
+        "object", "objects", "global", "local", "create", "creates",
         "define", "defined", "defines", "call", "calls", "called",
     }
 

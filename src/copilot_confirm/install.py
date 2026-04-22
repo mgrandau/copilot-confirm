@@ -1049,8 +1049,12 @@ def _cmd_log(args: argparse.Namespace) -> int:
 
     # v2 fields are optional; default to 'no' / '' so existing AI emitters keep working.
     assumed = (getattr(args, "assumed", None) or "no").lower() == "yes"
-    framing_correction = (getattr(args, "framing_correction", None) or "no").lower() == "yes"
-    option_modification = (getattr(args, "option_modification", None) or "no").lower() == "yes"
+    framing_correction = (
+        getattr(args, "framing_correction", None) or "no"
+    ).lower() == "yes"
+    option_modification = (
+        getattr(args, "option_modification", None) or "no"
+    ).lower() == "yes"
     task_id = getattr(args, "task_id", None) or ""
     # Defensive: keep task_id short and printable.
     task_id = "".join(c for c in task_id if c.isalnum() or c in "-_")[:16]

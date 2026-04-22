@@ -5,7 +5,6 @@ Converts relative imports to absolute so the frozen binary works.
 """
 
 import sys
-import os
 
 # When running as a PyInstaller bundle, adjust the path
 if getattr(sys, "frozen", False):

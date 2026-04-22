@@ -4,13 +4,14 @@ Used to A/B test instruction tweaks targeting cheap-model failure modes
 (assumption disclosure, ambiguity hedging, option distinctness).
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tests.evals.models import EVAL_MODEL_IDS, GitHubCopilotClient, ModelClientProtocol
-from tests.evals.test_eval_runner import run_all_evals, save_results, print_summary
+from tests.evals.test_eval_runner import print_summary, run_all_evals, save_results
 
 CHEAP_KEYS = ["haiku", "gemini_flash", "low_end"]  # claude-haiku, gemini-3-flash, gpt-5-mini
 

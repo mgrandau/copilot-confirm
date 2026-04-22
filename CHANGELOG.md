@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-04-22
+
+Hot-fix release: cleans up CI lint failures that were red on `main` since the eval-retrofit work landed (predates v0.2.0). No runtime behavior changes.
+
+### Fixed
+- Auto-fixable ruff violations across `tests/evals/` and `src/copilot_confirm/install.py` (10 fixes via `ruff --fix`, plus a manual line-wrap in the v2 telemetry CLI handler).
+- Added `per-file-ignores` for `tests/evals/**` covering `E501` (long unicode/string literals in assertion messages and model IDs), `E402` (legitimately late imports of optional providers), and `B007` (loop variables retained for documentation). These are research/test files, not production.
+
+### Notes
+- v0.2.0 itself was published with red CI; the tag is intentionally not moved. v0.2.1 is the first release where CI is fully green on the tagged commit.
+
 ## [0.2.0] — 2026-04-22
 
 First release after the eval-driven instruction tightening and telemetry schema expansion.
@@ -48,5 +59,6 @@ Tests: 213/213 green.
 
 Initial published version.
 
+[0.2.1]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.1
 [0.2.0]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.0
 [0.1.1]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.1.1

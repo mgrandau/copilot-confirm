@@ -100,9 +100,7 @@ def _parse_api_response(
 
 
 import datetime
-import os
 import urllib.request
-
 
 GITHUB_OAUTH_TOKEN_PATH = (
     Path.home() / ".openclaw" / "agents" / "main" / "agent" / "auth-profiles.json"

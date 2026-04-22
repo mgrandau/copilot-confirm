@@ -66,6 +66,11 @@ ignore = []
 [tool.ruff.lint.per-file-ignores]
 # Unused arguments are common in test fixtures
 "tests/**/*.py" = ["ARG001", "ARG002"]
+# Eval code has many long unicode literals (model IDs, structured assertion
+# strings, emoji markers) where wrapping hurts readability. Eval files also
+# legitimately use late imports for optional providers and use loop variables
+# for documentation purposes only.
+"tests/evals/**/*.py" = ["ARG001", "ARG002", "E501", "E402", "B007"]
 
 [tool.ruff.format]
 quote-style = "double"

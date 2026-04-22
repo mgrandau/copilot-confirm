@@ -795,6 +795,7 @@ class TestSaveResultsIncludesAggregates:
 
     def test_aggregates_key_present_in_json(self, tmp_path) -> None:
         import json
+
         from tests.evals.test_eval_runner import save_results
 
         results = [
@@ -1138,6 +1139,7 @@ class TestSaveResultsIncludesMultiTurn:
 
     def test_multi_turn_results_in_json(self, tmp_path) -> None:
         import json
+
         from tests.evals.test_eval_runner import save_results
 
         mt = evaluate_multi_turn(
@@ -1170,6 +1172,7 @@ class TestSaveResultsIncludesMultiTurn:
 
     def test_save_results_without_multi_turn_still_works(self, tmp_path) -> None:
         import json
+
         from tests.evals.test_eval_runner import save_results
 
         results = [
