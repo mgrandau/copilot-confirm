@@ -114,7 +114,7 @@ class TestTelemetryEntry:
         )
         line = entry.to_line(date(2026, 4, 17), 3)
         parts = [p.strip() for p in line.split("|")]
-        assert len(parts) == 9
+        assert len(parts) == 13
         assert parts[0] == "2026-04-17"
         assert parts[1] == "turn=3"
         assert parts[2] == "model=gpt-5-mini"
@@ -124,6 +124,11 @@ class TestTelemetryEntry:
         assert parts[6] == "waited=no"
         assert parts[7] == "options=yes"
         assert parts[8] == "pct=yes"
+        # v2 fields default when not set
+        assert parts[9] == "assumed=no"
+        assert parts[10] == "framing_correction=no"
+        assert parts[11] == "option_modification=no"
+        assert parts[12] == "task_id=-"
 
     def test_to_line_correction_and_waited_bool(self) -> None:
         entry = TelemetryEntry(
@@ -155,6 +160,44 @@ class TestTelemetryEntry:
         line = entry.to_line(date(2026, 1, 1), 1)
         assert "selected=0" in line
         assert "correction=yes" in line
+
+    def test_v2_assumption_and_task_id(self) -> None:
+        """v2 fields render correctly when set."""
+        entry = TelemetryEntry(
+            model="m",
+            selected=70,
+            spread=[70, 25, 5],
+            correction=False,
+            waited=True,
+            options=True,
+            pct=True,
+            assumed=True,
+            framing_correction=False,
+            option_modification=True,
+            task_id="abc12345",
+        )
+        line = entry.to_line(date(2026, 4, 22), 1)
+        assert "assumed=yes" in line
+        assert "framing_correction=no" in line
+        assert "option_modification=yes" in line
+        assert "task_id=abc12345" in line
+
+    def test_v2_defaults_when_unset(self) -> None:
+        """v2 fields default to no/'-' when omitted (backward compat)."""
+        entry = TelemetryEntry(
+            model="m",
+            selected=70,
+            spread=[70, 25, 5],
+            correction=False,
+            waited=True,
+            options=True,
+            pct=True,
+        )
+        line = entry.to_line(date(2026, 4, 22), 1)
+        assert "assumed=no" in line
+        assert "framing_correction=no" in line
+        assert "option_modification=no" in line
+        assert "task_id=-" in line
 
 
 # ============================================================================

@@ -43,16 +43,37 @@
 
 ---
 
-## Schema (v1)
+## Schema (v2)
 
 ```
 date | turn | model | selected | spread | correction | waited | options | pct
+     | assumed | framing_correction | option_modification | task_id
 ```
 
 Example:
 ```
-2026-04-17 | turn=1 | model=claude-sonnet-4.6 | selected=70 | spread=[70,25,5] | correction=no | waited=yes | options=yes | pct=yes
+2026-04-22 | turn=1 | model=claude-sonnet-4.6 | selected=70 | spread=[70,25,5] | correction=yes | waited=yes | options=yes | pct=yes | assumed=yes | framing_correction=no | option_modification=yes | task_id=abc12345
 ```
+
+### v2 fields (added 2026-04-22)
+
+- `assumed` (yes|no) — Did the model state an explicit assumption before the options? Surfaces whether the framing-disclosure behavior we trained for is actually happening in the wild.
+- `framing_correction` (yes|no) — Did the user push back on the model's stated assumption (“no, I meant the API layer”)? Distinct from option modification. Tracks how often the model's framing was wrong.
+- `option_modification` (yes|no) — Did the user pick an option but modify it (“1 but skip the tests”)? Tracks how often option text needs amendment.
+- `task_id` (≤8 alphanumeric chars, `-` if absent) — Short opaque id reused across confirms within one task. Lets analysis link successive confirmations into a single intent-evolution flow.
+
+### Backward compatibility
+
+- `correction` is retained. When v2 fields are provided, it is computed as `framing_correction OR option_modification` (legacy emitters keep working unchanged; v2 emitters can't desync the two).
+- `picked_rank` is **not** stored — it is derivable from `selected` and `spread` and computed in analysis.
+- Old log files (v1 lines without v2 fields) remain readable; new fields default to `no` / `-` when missing.
+
+### What v2 enables
+
+- **Framing accuracy:** what % of stated assumptions get corrected by the user? High `framing_correction` rate per model = the model's assumptions are off.
+- **Option fidelity:** what % of picks come with modifications? High `option_modification` rate = options aren't well-scoped.
+- **Calibration accuracy:** rank distribution of picks (derive from `selected` + `spread`). Lots of rank-2 picks means the model's top-pick instinct is off.
+- **Multi-turn flow shape:** within a `task_id`, watch how `selected` percentages evolve and how often the user re-frames. This is the closest thing to direct intent-evolution measurement.
 
 ## Config
 

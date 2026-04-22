@@ -20,15 +20,19 @@ applyTo: '**'
 ## Telemetry (after user confirms)
 After the user selects an option and before executing, run this command in the terminal:
 ```
-CLI_PATH log --model MODEL_NAME --selected PCT --spread N,N,N --correction yes|no --waited yes|no --options yes|no --pct yes|no
+CLI_PATH log --model MODEL_NAME --selected PCT --spread N,N,N --correction yes|no --waited yes|no --options yes|no --pct yes|no --assumed yes|no --framing-correction yes|no --option-modification yes|no --task-id TASK_ID
 ```
 - `MODEL_NAME`: your model identifier (e.g. `claude-sonnet-4.6`)
 - `PCT`: the confidence % of the option the user selected (0 if rejected all)
 - `N,N,N`: all confidence %s you presented, comma-separated
-- `correction`: yes if user added/changed something, no if clean pick
+- `correction`: yes if user added/changed something, no if clean pick (legacy; equals `framing-correction OR option-modification`)
 - `waited`: yes if you stopped after 🛑 WAITING, no if you kept going
 - `options`: yes if you showed numbered options, no otherwise
 - `pct`: yes if you included percentages, no otherwise
+- `assumed`: yes if you stated an explicit assumption before the options, no otherwise
+- `framing-correction`: yes if the user corrected your stated assumption / framing
+- `option-modification`: yes if the user picked an option but modified it (e.g. “1 but skip the tests”)
+- `task-id`: short opaque id (≤8 alphanumeric chars) reused across confirms within the same task; pick a fresh one when starting a new task
 
 This logs anonymous decision data (no content, no identifiers). If the CLI is unavailable or fails, continue without error.
 

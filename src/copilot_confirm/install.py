@@ -1047,14 +1047,33 @@ def _cmd_log(args: argparse.Namespace) -> int:
         )
         return 1
 
+    # v2 fields are optional; default to 'no' / '' so existing AI emitters keep working.
+    assumed = (getattr(args, "assumed", None) or "no").lower() == "yes"
+    framing_correction = (getattr(args, "framing_correction", None) or "no").lower() == "yes"
+    option_modification = (getattr(args, "option_modification", None) or "no").lower() == "yes"
+    task_id = getattr(args, "task_id", None) or ""
+    # Defensive: keep task_id short and printable.
+    task_id = "".join(c for c in task_id if c.isalnum() or c in "-_")[:16]
+
+    # `correction` is now derived when v2 fields are provided; if neither v2 field is
+    # set, fall back to the legacy --correction flag for backward-compat.
+    if framing_correction or option_modification:
+        correction = framing_correction or option_modification
+    else:
+        correction = args.correction.lower() == "yes"
+
     entry = TelemetryEntry(
         model=args.model,
         selected=args.selected,
         spread=spread,
-        correction=args.correction.lower() == "yes",
+        correction=correction,
         waited=args.waited.lower() == "yes",
         options=args.options.lower() == "yes",
         pct=args.pct.lower() == "yes",
+        assumed=assumed,
+        framing_correction=framing_correction,
+        option_modification=option_modification,
+        task_id=task_id,
     )
 
     logger_telem = create_telemetry_logger()
@@ -1116,9 +1135,10 @@ Examples:
   # Install globally to VS Code
   copilot-confirm --global
 
-  # Log a telemetry entry
+  # Log a telemetry entry (v2: with assumption + framing-correction + task-id)
   copilot-confirm log --model claude-sonnet-4.6 --selected 70 --spread 70,25,5 \\
-    --correction no --waited yes --options yes --pct yes
+    --correction no --waited yes --options yes --pct yes \\
+    --assumed no --framing-correction no --option-modification no --task-id a1b2c3d4
 
   # Show telemetry log
   copilot-confirm telemetry show
@@ -1220,6 +1240,33 @@ Examples:
         required=True,
         choices=["yes", "no"],
         help="Were percentages included?",
+    )
+    # v2 fields (optional, default "no" / empty for backward-compat)
+    log_parser.add_argument(
+        "--assumed",
+        choices=["yes", "no"],
+        default="no",
+        help="Did the model state an explicit assumption before the options?",
+    )
+    log_parser.add_argument(
+        "--framing-correction",
+        dest="framing_correction",
+        choices=["yes", "no"],
+        default="no",
+        help="Did the user correct the model's framing/assumption?",
+    )
+    log_parser.add_argument(
+        "--option-modification",
+        dest="option_modification",
+        choices=["yes", "no"],
+        default="no",
+        help="Did the user modify the chosen option in place?",
+    )
+    log_parser.add_argument(
+        "--task-id",
+        dest="task_id",
+        default="",
+        help="Short opaque id grouping multi-turn confirms within one task",
     )
 
     # ── telemetry ─────────────────────────────────────────────────────────────

@@ -5,8 +5,17 @@ Captures privacy-preserving, pipe-delimited decision telemetry for AI confirmati
 workflow analysis. Tracks which options were selected, spread, corrections, and
 protocol compliance signals.
 
-Schema (v1):
+Schema (v2):
     date | turn | model | selected | spread | correction | waited | options | pct
+         | assumed | framing_correction | option_modification | task_id
+
+v2 added (2026-04-22): assumed, framing_correction, option_modification, task_id.
+  - `assumed`: did the model state an explicit assumption before the options?
+  - `framing_correction`: did the user correct the framing/assumption?
+  - `option_modification`: did the user modify the chosen option in place?
+  - `task_id`: short opaque id linking multi-turn confirms within one task.
+The legacy `correction` field is retained and now means
+`framing_correction or option_modification` (true if either occurred).
 
 Features:
     • Config-driven: off / local / remote modes via ~/.copilot-confirm/config.toml
@@ -41,7 +50,7 @@ __all__ = [
 ]
 
 # Schema version — bump if fields added/removed
-_SCHEMA_VERSION = "v1"
+_SCHEMA_VERSION = "v2"
 _DEFAULT_CONFIG_DIR = Path.home() / ".copilot-confirm"
 _DEFAULT_LOG_PATH = _DEFAULT_CONFIG_DIR / "telemetry.log"
 _DEFAULT_CONFIG_PATH = _DEFAULT_CONFIG_DIR / "config.toml"
@@ -60,10 +69,16 @@ class TelemetryEntry:
         model: Model identifier string (e.g. "claude-sonnet-4.6")
         selected: Confidence % of the option picked. 0 = rejected all.
         spread: List of confidence %s presented (e.g. [70, 25, 5])
-        correction: True if user modified or redirected after selection
+        correction: True if user modified or redirected after selection.
+            Retained for backward-compat; equals
+            ``framing_correction or option_modification`` when those are set.
         waited: True if model stopped after 🛑 WAITING
         options: True if numbered options were presented
         pct: True if percentages were included
+        assumed: True if the model stated an explicit assumption (v2)
+        framing_correction: True if user corrected the model's assumption/framing (v2)
+        option_modification: True if user modified the chosen option text (v2)
+        task_id: Short opaque id linking multi-turn confirms within one task (v2)
         entry_date: Date of interaction. Defaults to today if None.
         turn: Step number in session day. Auto-incremented if 0.
     """
@@ -75,6 +90,10 @@ class TelemetryEntry:
     waited: bool
     options: bool
     pct: bool
+    assumed: bool = False
+    framing_correction: bool = False
+    option_modification: bool = False
+    task_id: str = ""
     entry_date: date | None = None
     turn: int = 0  # 0 = auto-assign on write
 
@@ -86,18 +105,26 @@ class TelemetryEntry:
             turn: The turn number to assign.
 
         Returns:
-            str: One pipe-delimited line per schema v1.
+            str: One pipe-delimited line per current schema.
         """
         spread_str = f"[{','.join(str(p) for p in self.spread)}]"
         correction_str = "yes" if self.correction else "no"
         waited_str = "yes" if self.waited else "no"
         options_str = "yes" if self.options else "no"
         pct_str = "yes" if self.pct else "no"
+        assumed_str = "yes" if self.assumed else "no"
+        framing_str = "yes" if self.framing_correction else "no"
+        optmod_str = "yes" if self.option_modification else "no"
+        task_id_str = self.task_id or "-"
         return (
             f"{entry_date} | turn={turn} | model={self.model}"
             f" | selected={self.selected}"
             f" | spread={spread_str} | correction={correction_str}"
             f" | waited={waited_str} | options={options_str} | pct={pct_str}"
+            f" | assumed={assumed_str}"
+            f" | framing_correction={framing_str}"
+            f" | option_modification={optmod_str}"
+            f" | task_id={task_id_str}"
         )
 
 
