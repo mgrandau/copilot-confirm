@@ -119,6 +119,51 @@ After installation, the Copilot Confirm agent will be available in VS Code:
 2. Select the **Copilot_Confirm** agent from the agent dropdown
 3. Start chatting - Copilot will now follow the confirmation workflow
 
+## 📊 Telemetry (opt-in)
+
+Copilot Confirm can record anonymous decision telemetry — which option the user picked, the confidence spread, whether protocol rules were followed, and (in v2) whether assumptions were stated and corrected. Useful for tracking calibration accuracy, framing accuracy, and intent-evolution flow over time.
+
+**Off by default.** Opt in by creating a config file.
+
+### Config
+
+`~/.copilot-confirm/config.toml`:
+
+```toml
+[telemetry]
+mode = "local"           # off | local | file | remote
+path = "~/.copilot-confirm/telemetry.log"
+endpoint = ""            # only used when mode = "remote"
+```
+
+**Modes:**
+- `off` — do nothing (default if file is missing).
+- `local` — append one line per confirmation to `path` via the `copilot-confirm log` CLI. This is the standard setup when the pip package is installed.
+- `file` — same wire format, written by non-CLI consumers (e.g. the [OpenClaw skill](https://clawhub.ai)) directly to `path`. Useful when the CLI isn't installed.
+- `remote` — same as `file`, plus POST each line to `endpoint`. Best-effort; never blocks real work.
+
+### Wire format (v2)
+
+```
+YYYY-MM-DD | turn=N | model=NAME | selected=PCT | spread=[N,N,N] | correction=yes|no | waited=yes|no | options=yes|no | pct=yes|no | assumed=yes|no | framing_correction=yes|no | option_modification=yes|no | task_id=ID
+```
+
+Full field reference and rationale: [docs/telemetry-plan.md](docs/telemetry-plan.md).
+
+### Privacy
+
+- ❌ No prompt content, no option text, no user identifiers, no precise timestamps
+- ✅ Model name and decision metadata only
+- ✅ Append-only plaintext you can read before sending anywhere
+- ✅ Fully opt-in, off by default
+
+### Inspect / send
+
+```bash
+copilot-confirm telemetry show     # display the local log
+copilot-confirm telemetry send     # POST the log to the configured endpoint
+```
+
 ## 🛠️ Development
 
 ```bash
