@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-04-22
+
+Doc/skill release: brings the repo-shipped OpenClaw skill in sync with the canonical instructions. No CLI or runtime behavior changes.
+
+### Changed
+- **`skill/copilot-confirm/SKILL.md`** updated to match `src/copilot_confirm/agent_files/instructions/confirmation_workflow.instructions.md` (the version that the evals validate). Anyone who installed the skill from a tagged release prior to v0.2.2 was getting the v0.1.x protocol.
+- New skill content includes: assumption-disclosure rule (the eval-driven win from v0.2.0), "applies to ALL requests" critical rules, the "after 🛑 WAITING your message ENDS" rule, honest-confidence ranking note, and the full Telemetry section (config-driven, sharing `~/.copilot-confirm/config.toml` with the installed CLI; documents all four modes including `file`).
+- Added a header note designating `instructions.md` as the canonical source so future edits keep the two in sync.
+
 ## [0.2.1] — 2026-04-22
 
 Hot-fix release: cleans up CI lint failures that were red on `main` since the eval-retrofit work landed (predates v0.2.0). No runtime behavior changes.
@@ -59,6 +68,7 @@ Tests: 213/213 green.
 
 Initial published version.
 
+[0.2.2]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.2
 [0.2.1]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.1
 [0.2.0]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.0
 [0.1.1]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.1.1
