@@ -80,10 +80,15 @@ Example:
 ```toml
 # ~/.copilot-confirm/config.toml
 [telemetry]
-mode = "local"           # off | local | remote
+mode = "local"           # off | local | file | remote
 path = "~/.copilot-confirm/telemetry.log"
 endpoint = ""            # URL for remote mode
 ```
+
+`file` (added v2, 2026-04-22) is an alias of `local` for environments that consume
+this config without running the `copilot-confirm` CLI — e.g. the SKILL.md
+consumer in another agent harness. It exists so the skill and the CLI share one
+config file and one set of mode names.
 
 ## Privacy Contract
 

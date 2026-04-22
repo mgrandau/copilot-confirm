@@ -231,6 +231,13 @@ class TestLoadConfig:
         config = _parse_toml_telemetry(toml, defaults)
         assert config.mode == "off"
 
+    def test_parse_file_mode(self) -> None:
+        """v2: 'file' mode is accepted (alias of local for non-CLI consumers)."""
+        toml = '[telemetry]\nmode = "file"\npath = "/tmp/t.log"\n'
+        defaults = TelemetryConfig(mode="off", path=Path("/default"), endpoint="")
+        config = _parse_toml_telemetry(toml, defaults)
+        assert config.mode == "file"
+
     def test_invalid_mode_uses_default(self) -> None:
         toml = '[telemetry]\nmode = "invalid"\n'
         defaults = TelemetryConfig(mode="off", path=Path("/default"), endpoint="")

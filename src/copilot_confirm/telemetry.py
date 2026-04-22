@@ -133,7 +133,13 @@ class TelemetryConfig:
     """Parsed telemetry configuration.
 
     Attributes:
-        mode: "off" | "local" | "remote"
+        mode: "off" | "local" | "file" | "remote"
+            - off:    do nothing
+            - local:  append to `path` (default; the original v1 mode)
+            - file:   alias of local for environments that aren't running
+                      the CLI but use the same config (e.g. the SKILL.md
+                      consumer in another agent harness)
+            - remote: append to `path` AND POST each line to `endpoint`
         path: Path to telemetry log file.
         endpoint: URL for remote mode POST. Empty string = no remote.
     """
@@ -297,7 +303,7 @@ def _parse_toml_telemetry(text: str, defaults: TelemetryConfig) -> TelemetryConf
         val = val.strip().strip('"').strip("'")
 
         if key == "mode":
-            if val in ("off", "local", "remote"):
+            if val in ("off", "local", "file", "remote"):
                 mode = val
         elif key == "path":
             path = Path(val).expanduser()
