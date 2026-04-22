@@ -241,6 +241,8 @@ cp -r skill/copilot-confirm /path/to/openclaw/skills/
 
 This gives OpenClaw agents the same confirmation workflow — present options with percentages, wait for approval, then execute.
 
+The skill bundles a vendored telemetry CLI at `skill/copilot-confirm/lib/copilot_confirm_telemetry/` (byte-identical to the pip package's telemetry module — enforced by a CI test). The agent invokes it via `<skill_dir>/log` to log v2 telemetry to the same `~/.copilot-confirm/config.toml` the pip CLI uses. **Zero install required** — just `python3`. If the pip `copilot-confirm` CLI is also on `PATH`, the skill prefers that.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Skill-local launcher for the vendored telemetry CLI.
+#
+# Usage matches `copilot-confirm log ...` and `copilot-confirm telemetry ...`:
+#
+#   ./log log --model NAME --selected 70 --spread 70,25,5 \
+#             --correction no --waited yes --options yes --pct yes \
+#             [--assumed yes|no] [--framing-correction yes|no] \
+#             [--option-modification yes|no] [--task-id ID]
+#
+#   ./log telemetry show
+#   ./log telemetry send
+#
+# This invokes the vendored `copilot_confirm_telemetry` package, which is a
+# byte-identical copy of the telemetry module from the pip package. The skill
+# uses this when the `copilot-confirm` pip CLI is not on PATH.
+
+set -euo pipefail
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec env PYTHONPATH="${SKILL_DIR}/lib${PYTHONPATH:+:${PYTHONPATH}}" \
+  python3 -m copilot_confirm_telemetry "$@"

@@ -43,6 +43,7 @@ test-cov = "python -m pytest tests/ -v --cov=src/copilot_confirm --cov-branch --
 typecheck = "python -m mypy src"
 check-all = { composite = ["lint", "typecheck", "security", "test-cov"] }
 evals = "python -m tests.evals.test_eval_runner"
+sync-skill = {shell = "cp src/copilot_confirm/telemetry.py skill/copilot-confirm/lib/copilot_confirm_telemetry/telemetry.py && echo 'Vendored telemetry.py refreshed.'"}
 
 [tool.ruff]
 target-version = "py313"

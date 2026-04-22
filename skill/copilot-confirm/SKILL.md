@@ -65,11 +65,13 @@ endpoint = ""          # used by remote mode
 ### Sink behavior (same v2 wire format in every mode)
 
 - **`off`** — do nothing, never error.
-- **`local`** — invoke the `copilot-confirm log` CLI if it is on `PATH`. This is what the installed CLI uses; the skill should call it when present so behavior matches the canonical implementation exactly.
-- **`file`** — append one pipe-delimited line to `path` directly. Use this when the CLI isn't installed (most environments where the skill ships). Same format as `local` would write.
+- **`local`** — invoke a CLI to log the entry. Resolution order:
+  1. `copilot-confirm log ...` if the pip CLI is on `PATH` (use this when the pip package is installed).
+  2. **`<skill_dir>/log log ...`** — the skill ships a vendored telemetry CLI that is byte-identical to the pip CLI's telemetry module. Use this when `copilot-confirm` is not on `PATH`. Zero install required — just `python3` (stdlib only).
+- **`file`** — append one pipe-delimited line to `path` directly without invoking the CLI. Useful for environments where you want to skip the subprocess. Same wire format as `local`.
 - **`remote`** — same as `file`, plus POST one line to `endpoint`. Best-effort, swallow errors.
 
-**Resolution rule:** if `mode = "local"` but the CLI isn't on `PATH`, fall back to `file` semantics (append directly). Telemetry must never block real work.
+**Telemetry must never block real work** — if the CLI exits non-zero or the file isn't writable, swallow the error.
 
 ### Wire format (v2, identical across sinks)
 
@@ -98,7 +100,7 @@ Only log confirmations that reflect real signal (a non-trivial decision). Skip t
 
 ### Example configs
 
-**Repo with the CLI installed** — just use `local`:
+**Repo with the pip CLI installed** — use `local`, picks up `copilot-confirm` from `PATH`:
 ```toml
 # ~/.copilot-confirm/config.toml
 [telemetry]
@@ -106,13 +108,37 @@ mode = "local"
 path = "~/.copilot-confirm/telemetry.log"
 ```
 
-**Agent environment without the CLI** — use `file` and point at any append-friendly target:
+**Agent environment without the pip CLI** — still use `local`; the skill's vendored `<skill_dir>/log` will be used automatically:
+```toml
+# ~/.copilot-confirm/config.toml
+[telemetry]
+mode = "local"
+path = "~/some/agent/log.md"
+```
+
+**Direct file append (skip CLI subprocess)** — use `file`:
 ```toml
 # ~/.copilot-confirm/config.toml
 [telemetry]
 mode = "file"
 path = "~/some/agent/log.md"
 ```
+
+## Bundled CLI
+
+The skill ships a vendored copy of the telemetry CLI at `<skill_dir>/lib/copilot_confirm_telemetry/`. Invoke via `<skill_dir>/log`:
+
+```bash
+<skill_dir>/log log --model NAME --selected 70 --spread 70,25,5 \
+                    --correction no --waited yes --options yes --pct yes \
+                    [--assumed yes|no] [--framing-correction yes|no] \
+                    [--option-modification yes|no] [--task-id ID]
+
+<skill_dir>/log telemetry show     # display the local log
+<skill_dir>/log telemetry send     # POST to configured endpoint
+```
+
+The vendored copy is byte-identical to `src/copilot_confirm/telemetry.py` in the [pip package](https://github.com/mgrandau/copilot-confirm); a CI test enforces this. Stdlib-only — no install required beyond `python3`.
 
 ## Background
 Implements the concepts from Mark Grandau's article: [The Better Agent: Homing Intent Through Probabilistic Feedback](https://mgrandau.medium.com/the-better-agent-homing-intent-through-probabilistic-feedback-d545466ebe6d). The pip-installable version for GitHub Copilot in VS Code is at [mgrandau/copilot-confirm](https://github.com/mgrandau/copilot-confirm).

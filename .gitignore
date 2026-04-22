@@ -16,6 +16,11 @@ eggs/
 .eggs/
 lib/
 lib64/
+# but DO track the vendored telemetry CLI inside the skill
+!skill/copilot-confirm/lib/
+!skill/copilot-confirm/lib/**
+# (still ignore bytecode under the vendored skill lib)
+skill/copilot-confirm/lib/**/__pycache__/
 parts/
 sdist/
 var/

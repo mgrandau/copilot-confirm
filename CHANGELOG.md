@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-04-22
+
+The OpenClaw skill is now self-contained: it ships a bundled telemetry CLI so the skill works zero-install in any environment with `python3`. No CLI behavior changes for pip-package users.
+
+### Added
+- **Vendored telemetry CLI inside the skill** at `skill/copilot-confirm/lib/copilot_confirm_telemetry/`:
+  - `telemetry.py` — byte-identical copy of `src/copilot_confirm/telemetry.py` (CI-enforced).
+  - `__main__.py` — slim entry point exposing only the runtime-facing subcommands (`log`, `telemetry show`, `telemetry send`).
+  - `<skill_dir>/log` — stdlib-only bash launcher: `<skill_dir>/log log --model ... --selected ... ...`.
+- **`pdm run sync-skill`** — refreshes the vendored copy from source. Also documented in the failure message of the new sync test.
+- **`tests/test_skill_vendored_in_sync.py`** — byte-equality test that fails CI if the vendored telemetry.py drifts from the source.
+- **README + skill SKILL.md updates** describing the bundled CLI and its zero-install posture.
+- **`.gitignore`** updated to whitelist `skill/copilot-confirm/lib/` (the standard Python `lib/` ignore was hiding the vendored package) while still ignoring its `__pycache__/`.
+
+### Changed
+- **`local` mode resolution** — the skill now first looks for `copilot-confirm` on `PATH`; if missing, it falls back to the bundled `<skill_dir>/log`. Pip-CLI users see no behavior change.
+- **SKILL.md telemetry section** in both the workspace skill and the repo's `skill/copilot-confirm/SKILL.md` document the bundled CLI and the new resolution order.
+
+### Why
+v0.2.x left users in a fork: install the pip CLI to get `local` mode, or settle for `file` mode and lose the canonical code path. Vendoring the telemetry module into the skill removes the fork — every install gets the same code (literally the same bytes), with or without the pip package. The CI sync test prevents drift.
+
+Tests: 214/214 green (added 1).
+
 ## [0.2.2] — 2026-04-22
 
 Doc/skill release: brings the repo-shipped OpenClaw skill in sync with the canonical instructions. No CLI or runtime behavior changes.
@@ -68,6 +91,7 @@ Tests: 213/213 green.
 
 Initial published version.
 
+[0.3.0]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.3.0
 [0.2.2]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.2
 [0.2.1]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.1
 [0.2.0]: https://github.com/mgrandau/copilot-confirm/releases/tag/v0.2.0
